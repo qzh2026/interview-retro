@@ -46,11 +46,11 @@ MSYS_NO_PATHCONV=1 VITE_BASE=/<repo>/ npm run build
 
 配置层会校验 `VITE_BASE`：值不像合法子路径时回退 `/` 并给出警告。部署在域名根路径时无需设置。
 
-## 后端骨架（Stage 3）
+## 后端与云同步（Stage 3–4）
 
-前端仍然是**本地优先、可离线独立运行**的纯静态产物；后端骨架已经落地，但**尚未接管前端数据**，账号与多端同步在后续阶段接入。
+前端仍然是**本地优先、可离线独立运行**的纯静态产物：不登录时数据只存浏览器；登录后通过内置 `cloud-sync` 插件做**增量云同步**（字段级 LWW 合并），断网时本地照常用，恢复后自动补齐。
 
-复制 `.env.example` 为 `.env` 后即可启动（不复制也能跑，全部变量都有安全默认值）：
+复制 `.env.example` 为 `.env` 后即可启动（不复制也能跑，全部变量都有安全默认值；`JWT_SECRET` 生产必填）：
 
 ```bash
 npm run dev:server   # tsx watch，改代码自动重启
@@ -63,20 +63,28 @@ curl http://127.0.0.1:3001/ready
 |---|---|
 | `GET /health` | 进程存活，不查数据库；返回版本与运行时长 |
 | `GET /ready` | 数据库连通且迁移已应用；失败返回 503 |
+| `POST /api/auth/register` | 注册并自动登录；密码用 scrypt 哈希，绝不存明文 |
+| `POST /api/auth/login` | 登录，返回 15 分钟访问令牌（JWT）+ HttpOnly 刷新 Cookie |
+| `POST /api/auth/refresh` | 轮换刷新令牌并签发新访问令牌；旧令牌复用会撤销该用户全部会话 |
+| `POST /api/auth/logout` | 幂等登出，撤销刷新令牌 |
+| `POST /api/sync/push` | 批量推送变更（按 `changeId` 幂等，重试安全） |
+| `GET /api/sync/pull?since=` | 按 `seq` 游标增量拉取变更 |
 
-所有错误统一为 `{ "error": { "code", "message", "requestId" } }`，客户端永远拿不到堆栈或内部异常。结构化 JSON 日志带 `requestId`，请求序列化只保留 method / url / requestId，不记录 headers、令牌与隐私数据。
+所有错误统一为 `{ "error": { "code", "message", "requestId" } }`，客户端永远拿不到堆栈或内部异常。结构化 JSON 日志带 `requestId`，请求序列化只保留 method / url / requestId，不记录 headers、令牌与隐私数据。`/api/auth/*` 有每分钟每 IP 限流。
 
-**分层约定**：`server/modules/*` 按 `controller → service → repository` 组织，控制器不写业务逻辑，服务层不 import HTTP 类型；`shared/api.ts` 是前后端共享的 DTO 与错误码（纯类型，无运行时依赖）；`shared/domain.ts` 是领域模型单一来源。配置集中在 `server/config/env.ts`，启动时用 zod 校验并快速失败，生产环境禁止 CORS 通配符。
+**分层约定**：`server/modules/*` 按 `controller → service → repository` 组织，控制器不写业务逻辑，服务层不 import HTTP 类型；`shared/api.ts` 是前后端共享的 DTO 与错误码（纯类型，无运行时依赖）；`shared/domain.ts` 是领域模型单一来源。配置集中在 `server/config/env.ts`，启动时用 zod 校验并快速失败，生产环境禁止 CORS 通配符、强制要求 `JWT_SECRET`。
 
-**环境变量**（均非密钥，见 `.env.example`）：`NODE_ENV` `HOST` `PORT` `LOG_LEVEL` `DATABASE_URL` `CORS_ORIGINS` `APP_VERSION`。真实 `.env` 已被忽略；JWT 与 AI 密钥在后续阶段引入，且**只允许放在服务端 env**，禁止写入 `VITE_*`。
+**令牌安全**：访问令牌只放前端内存（刷新页面即失效，由刷新令牌静默续期）；刷新令牌是不透明随机值，服务端只存 SHA-256 hash，经 HttpOnly Cookie 流转，可主动撤销。密钥只出现在服务端 env，禁止写入 `VITE_*`。
 
-**数据库**：Drizzle + libSQL（SQLite）。`npm run db:generate` 根据 `server/db/schema.ts` 生成可审查、可回滚的 SQL 到 `server/db/migrations/`，服务启动期自动执行未应用的迁移（幂等）。首个迁移只建鉴权地基表 `users` / `refresh_tokens`，同步相关表留到下一阶段。本地数据文件默认在 `server/data/`，已被忽略。
+**同步模型**：服务端是「哑变更日志」——`sync_changes`（append-only，`changeId` 幂等）+ `tombstones`（墓碑物化），不参与冲突合并；客户端把本地写入差分成字段级变更上传，拉取时按**字段级 LWW**（时间戳 + changeId 决胜）收敛，任意推送顺序都得到同一状态。前端入口是 `useAsyncStorageAdapter` 注入的混合云适配器（未登录时等价于纯 localStorage），30s 轮询 + 写后防抖推送 + 离线队列。
+
+**数据库**：Drizzle + libSQL（SQLite）。`npm run db:generate` 根据 `server/db/schema.ts` 生成可审查、可回滚的 SQL 到 `server/db/migrations/`，服务启动期自动执行未应用的迁移（幂等）。迁移 0000 建 `users` / `refresh_tokens`，迁移 0001 建 `sync_changes` / `tombstones`。本地数据文件默认在 `server/data/`，已被忽略。
 
 ## 数据存在哪
 
-数据保存在浏览器 `localStorage`，**前端目前没有账号、不依赖后端**（后端骨架见上一节，暂不接管数据）。这意味着：
+数据保存在浏览器 `localStorage`；登录后会增量同步到后端（见上一节）。这意味着：
 
-- 清除浏览器数据 / 换浏览器 / 换电脑 / 无痕模式 → 数据会丢失，**请定期在「数据与备份」页导出 JSON**
+- 清除浏览器数据 / 换浏览器 / 换电脑 / 无痕模式 → 未登录时数据会丢失，**请定期在「数据与备份」页导出 JSON**；已登录用户可在新设备登录后自动拉回
 - 本地存储写入失败或数据解析损坏时，顶部会显示告警；损坏数据会另存一份原始副本，可下载后人工恢复，**不要直接继续录入**，否则后续写操作会覆盖它
 - 容量上限约 5 MB；题量上万或需要全文索引时，可换 IndexedDB 存储适配器（见下方约束说明）
 - 导入是整包覆盖，操作前会二次确认
@@ -378,7 +386,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 - P1：Markdown 渲染与代码高亮、面经文本解析增强、按公司 / 岗位统计
 - P2：~~异步存储适配器~~ **已完成**（`AsyncStorageAdapter` + 统一异步网关，repository / stores 已 async 化）；全文检索待做
 - P3：官方 AI 复盘插件（后端代理保管密钥）
-- P4：多端同步（这一步才需要后端与账号）
+- P4：~~多端同步（账号 + 增量同步）~~ **已完成**（scrypt + JWT 鉴权、`/api/sync/*`、字段级 LWW、离线队列、30s 轮询）；剩余：同步冲突的可视化 diff、日志压缩
 
 ## 常见问题
 
@@ -386,7 +394,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 
 **为什么用 hash 路由？** 静态托管不需要服务端 rewrite，本地双击 `dist/index.html` 也能打开。换 history 模式需配置 SPA fallback。
 
-**CI 跑什么？** `.github/workflows/ci.yml` 在 push / PR 时执行 `npm ci` → `npm run typecheck` → `npm run build`，防止第三方 PR 破坏构建。
+**CI 跑什么？** `.github/workflows/ci.yml` 在 push / PR 时执行 `npm ci` → `npm run typecheck` → `npm run typecheck:server` → `npm test` → `npm run build`，防止第三方 PR 破坏构建。
 
 ## 许可证
 

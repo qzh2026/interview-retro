@@ -27,6 +27,13 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       open: true,
+      // 开发期把 /api 转发到后端：同源请求 Cookie 天然跟随，免 CORS 调试之苦
+      proxy: {
+        '/api': {
+          target: env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:3001',
+          changeOrigin: false,
+        },
+      },
     },
     build: {
       outDir: 'dist',

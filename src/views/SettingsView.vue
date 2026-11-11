@@ -3,9 +3,62 @@
     <div class="page-header">
       <div>
         <h1>数据与备份</h1>
-        <p>数据只存在这台设备的浏览器里，导出 JSON 是唯一的保命手段</p>
+        <p>数据保存在这台设备的浏览器里；登录后可跨设备增量同步，JSON 导出仍是保命手段</p>
       </div>
     </div>
+
+    <section class="card mb-16">
+      <h2 class="section-title">账号与云同步</h2>
+      <template v-if="authStore.isAuthenticated">
+        <div class="setting-row">
+          <div>
+            <strong>已登录：{{ authStore.user?.email }}</strong>
+            <div class="muted">
+              {{ syncStatus.message }}
+              <template v-if="syncStatus.lastSyncAt"> · 上次同步 {{ formatTime(syncStatus.lastSyncAt) }}</template>
+              <template v-if="syncStatus.pendingCount > 0"> · 待推送 {{ syncStatus.pendingCount }} 条</template>
+            </div>
+          </div>
+          <div>
+            <el-button :loading="authStore.pending" @click="onSyncNow">立即同步</el-button>
+            <el-button @click="onLogout">退出登录</el-button>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <p class="muted intro">登录后数据会在多设备间增量同步；不登录也完全可用，数据只存本机。</p>
+        <div class="setting-row">
+          <div><strong>邮箱</strong></div>
+          <el-input v-model="authForm.email" style="width: 260px" placeholder="you@example.com" />
+        </div>
+        <div class="setting-row">
+          <div>
+            <strong>密码</strong>
+            <div class="muted">至少 8 位；「注册并同步」会把本机数据上传到该账号</div>
+          </div>
+          <el-input
+            v-model="authForm.password"
+            type="password"
+            show-password
+            style="width: 260px"
+            placeholder="至少 8 位"
+            @keyup.enter="onLogin"
+          />
+        </div>
+        <div class="right">
+          <el-button type="primary" :loading="authStore.pending" @click="onLogin">登录</el-button>
+          <el-button :loading="authStore.pending" @click="onRegister">注册并同步</el-button>
+        </div>
+      </template>
+      <el-alert
+        v-if="authStore.error"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="authStore.error"
+        style="margin-top: 12px"
+      />
+    </section>
 
     <section class="card mb-16">
       <h2 class="section-title">复习策略</h2>
@@ -133,6 +186,8 @@ import {
 import { useSettingsStore } from '@/stores/settings'
 import { useInterviewStore } from '@/stores/interview'
 import { useQuestionStore } from '@/stores/question'
+import { useAuthStore } from '@/stores/auth'
+import { syncStatus } from '@/services/cloud/status'
 import { downloadTextFile } from '@/services/backup'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import { loadState } from '@/services/storage'
@@ -162,6 +217,36 @@ function pointLabel(point: unknown): string {
 const settingsStore = useSettingsStore()
 const interviewStore = useInterviewStore()
 const questionStore = useQuestionStore()
+const authStore = useAuthStore()
+
+const authForm = ref({ email: '', password: '' })
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString()
+}
+
+async function onLogin(): Promise<void> {
+  const ok = await authStore.login({ email: authForm.value.email, password: authForm.value.password })
+  if (ok) ElMessage.success('登录成功，已开始与云端同步')
+}
+
+async function onRegister(): Promise<void> {
+  const ok = await authStore.register({
+    email: authForm.value.email,
+    password: authForm.value.password,
+  })
+  if (ok) ElMessage.success('注册成功，本机数据已开始上传')
+}
+
+async function onLogout(): Promise<void> {
+  await authStore.logout()
+  ElMessage.success('已退出登录，数据仍保存在本机')
+}
+
+async function onSyncNow(): Promise<void> {
+  await authStore.sync()
+  if (!authStore.error) ElMessage.success('同步完成')
+}
 
 const intervalText = ref(settingsStore.settings.reviewIntervals.join(', '))
 const dailyLimit = ref(settingsStore.settings.dailyReviewLimit)

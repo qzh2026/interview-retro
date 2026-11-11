@@ -1,4 +1,5 @@
 import type { Plugin } from '@/sdk'
+import cloudSync from './cloud-sync'
 import markdownExporter from './markdown-exporter'
 import textImporter from './text-importer'
 import tagCloud from './tag-cloud'
@@ -15,6 +16,7 @@ import reviewLog from './review-log'
  * 注册顺序有意义：替换型扩展点（存储 / AI / 复习策略）后注册者生效。
  */
 export const plugins: Plugin[] = [
+  cloudSync,
   markdownExporter,
   textImporter,
   tagCloud,
