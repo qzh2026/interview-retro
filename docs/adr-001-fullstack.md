@@ -1,11 +1,12 @@
 # ADR-001 · 全栈化架构决策
 
-> 状态：**已确认，分阶段实施中**。Stage 0（版本控制基线）已完成，Stage 1（测试安全网）进行中。
+> 状态：**已确认，分阶段实施中**。Stage 0–3 已完成（版本控制基线 / vitest 安全网 / async 存储网关 / 后端骨架），Stage 4 起待实施。
+> 实施状态修订于 2026-11-11：下文保留原始决策，仅修正随实施而过时的事实性描述。
 > 本文只记录架构决策与约束，不含任何密钥、凭证或本机专属配置。
 
 ## 背景
 
-项目最初是纯前端单机应用：Vue 3 + Vite + TypeScript + Pinia，数据存浏览器本地存储，JSON 全量导入导出是唯一备份。核心价值不在 CRUD，而在**插件扩展体系**：`src/sdk/` 是稳定公共契约，11 个扩展点允许第三方在不改核心文件的前提下替换存储后端、AI 适配器、复习策略，或增加导入导出格式与 UI 插槽。
+项目最初是纯前端单机应用：Vue 3 + Vite + TypeScript + Pinia，数据存浏览器本地存储，JSON 全量导入导出是唯一备份。核心价值不在 CRUD，而在**插件扩展体系**：`src/sdk/` 是稳定公共契约，12 个扩展点允许第三方在不改核心文件的前提下替换存储后端、AI 适配器、复习策略，或增加导入导出格式与 UI 插槽。
 
 全栈化的目标是在**不推倒这套插件体系**的前提下，加入账号、多端同步与后端 AI 代理。
 
@@ -53,9 +54,9 @@
 
 ### 3.4 构建与类型检查边界
 
-- 根 `tsconfig.json` 的 `include` 只覆盖 `src/` 与 `vite.config.ts`，`vue-tsc --noEmit` **不会检查 `server/` 与 `shared/`**；CI 必须新增 `typecheck:server`（独立 `server/tsconfig.json`）。
-- 前端引用 `shared/` 需新增 `@shared/*` alias 并同步 `tsconfig.paths`。
-- 领域类型抽到 `shared/domain.ts`，`src/types/index.ts` 改为 re-export —— 对外 `@/types` 路径与 SDK 签名不变。
+- 根 `tsconfig.json` 的 `include` 覆盖 `src/` / `shared/` / `vite.config.ts`，但 `vue-tsc --noEmit` **不会检查 `server/`**；CI 已新增 `typecheck:server`（独立 `tsconfig.server.json`，覆盖 `server/` 与 `shared/`）。
+- 前后端引用 `shared/` 均用相对路径，**未引入 `@shared/*` alias**（Stage 2 实施时调整，避免维护两套路径映射）。
+- 领域类型抽到 `shared/domain.ts`，`src/types/index.ts` 改为 re-export —— 对外 `@/types` 路径与 SDK 签名不变（Stage 2 已实施）。
 
 ## 4. 端点草案
 
@@ -90,7 +91,7 @@
 
 **横切规则**：每步一个提交，每步单独跑 typecheck + build（Stage 1 起加 `npm test`，Stage 3 起加 `typecheck:server`）；一个 Stage 不绿不进下一个；新增依赖先列清单与用途再安装。
 
-**Stage 3 环境风险**：SQLite 驱动若是原生模块，在部分环境可能缺构建工具；踩坑时改用纯 JS 的 libSQL 驱动（Drizzle 同样支持）。
+**Stage 3 环境风险（已解决）**：直接选用 `@libsql/client` 作 SQLite 驱动，Node 22 / Windows 实测原生预编译二进制可用，无需本地构建工具；`better-sqlite3` 未引入。生产切 PostgreSQL 时替换 `server/db/client.ts` 的驱动与 drizzle 实例即可。
 
 ## 7. 不阻塞的遗留
 

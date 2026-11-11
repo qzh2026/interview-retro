@@ -19,10 +19,13 @@
 
 ```bash
 npm ci
-npm run dev        # 开发服务器，默认 http://localhost:5173
-npm run typecheck  # vue-tsc 类型检查
+npm run dev        # 前端开发服务器，默认 http://localhost:5173
+npm test           # vitest 单测（前端数据层 + 后端）
+npm run typecheck  # 前端类型检查（vue-tsc）
+npm run typecheck:server  # 后端独立类型检查（vue-tsc 不覆盖 server/）
 npm run build      # 类型检查 + 生产构建，产物在 dist/
 npm run preview    # 本地预览构建产物
+npm run dev:server # 后端开发服务，默认 http://127.0.0.1:3001
 ```
 
 `dist/` 是纯静态产物，使用 hash 路由，**不需要服务端 rewrite 配置**。但部署到子路径（例如 GitHub Pages 的 `https://<user>.github.io/<repo>/`）时必须指定资源前缀，否则 `/assets/*` 会 404：
@@ -43,9 +46,35 @@ MSYS_NO_PATHCONV=1 VITE_BASE=/<repo>/ npm run build
 
 配置层会校验 `VITE_BASE`：值不像合法子路径时回退 `/` 并给出警告。部署在域名根路径时无需设置。
 
+## 后端骨架（Stage 3）
+
+前端仍然是**本地优先、可离线独立运行**的纯静态产物；后端骨架已经落地，但**尚未接管前端数据**，账号与多端同步在后续阶段接入。
+
+复制 `.env.example` 为 `.env` 后即可启动（不复制也能跑，全部变量都有安全默认值）：
+
+```bash
+npm run dev:server   # tsx watch，改代码自动重启
+npm run start:server # 一次性启动
+curl http://127.0.0.1:3001/health
+curl http://127.0.0.1:3001/ready
+```
+
+| 端点 | 说明 |
+|---|---|
+| `GET /health` | 进程存活，不查数据库；返回版本与运行时长 |
+| `GET /ready` | 数据库连通且迁移已应用；失败返回 503 |
+
+所有错误统一为 `{ "error": { "code", "message", "requestId" } }`，客户端永远拿不到堆栈或内部异常。结构化 JSON 日志带 `requestId`，请求序列化只保留 method / url / requestId，不记录 headers、令牌与隐私数据。
+
+**分层约定**：`server/modules/*` 按 `controller → service → repository` 组织，控制器不写业务逻辑，服务层不 import HTTP 类型；`shared/api.ts` 是前后端共享的 DTO 与错误码（纯类型，无运行时依赖）；`shared/domain.ts` 是领域模型单一来源。配置集中在 `server/config/env.ts`，启动时用 zod 校验并快速失败，生产环境禁止 CORS 通配符。
+
+**环境变量**（均非密钥，见 `.env.example`）：`NODE_ENV` `HOST` `PORT` `LOG_LEVEL` `DATABASE_URL` `CORS_ORIGINS` `APP_VERSION`。真实 `.env` 已被忽略；JWT 与 AI 密钥在后续阶段引入，且**只允许放在服务端 env**，禁止写入 `VITE_*`。
+
+**数据库**：Drizzle + libSQL（SQLite）。`npm run db:generate` 根据 `server/db/schema.ts` 生成可审查、可回滚的 SQL 到 `server/db/migrations/`，服务启动期自动执行未应用的迁移（幂等）。首个迁移只建鉴权地基表 `users` / `refresh_tokens`，同步相关表留到下一阶段。本地数据文件默认在 `server/data/`，已被忽略。
+
 ## 数据存在哪
 
-数据保存在浏览器 `localStorage`，**没有账号、没有后端、没有数据库**。这意味着：
+数据保存在浏览器 `localStorage`，**前端目前没有账号、不依赖后端**（后端骨架见上一节，暂不接管数据）。这意味着：
 
 - 清除浏览器数据 / 换浏览器 / 换电脑 / 无痕模式 → 数据会丢失，**请定期在「数据与备份」页导出 JSON**
 - 本地存储写入失败或数据解析损坏时，顶部会显示告警；损坏数据会另存一份原始副本，可下载后人工恢复，**不要直接继续录入**，否则后续写操作会覆盖它
@@ -57,7 +86,18 @@ MSYS_NO_PATHCONV=1 VITE_BASE=/<repo>/ npm run build
 
 ```
 shared/
-└── domain.ts          领域模型单一来源（前后端共享，src/types 从这里 re-export）
+├── domain.ts          领域模型单一来源（前后端共享，src/types 从这里 re-export）
+└── api.ts             API DTO 与规范化错误码（纯类型，无运行时依赖）
+server/
+├── config/env.ts      环境变量集中校验，启动快速失败
+├── core/validate.ts   边界输入校验
+├── errors/            类型化 AppError + 全局错误处理器
+├── db/                Drizzle schema / 连接 / 可回滚 SQL 迁移
+├── http/              结构化日志 / 安全头 / CORS 白名单
+├── modules/health/    controller → service → repository 三层示例
+├── app.ts             应用组装（依赖注入，便于 inject 测试）
+├── lifecycle.ts       优雅停机（顺序 / 幂等 / 超时兜底）
+└── index.ts           启动入口
 src/
 ├── sdk/               对外稳定契约（第三方插件只依赖这里）
 │   ├── types.ts          Plugin / 事件表 / 适配器 / UI 插槽等全部公共类型

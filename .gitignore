@@ -16,3 +16,5 @@ npm-debug.log*
 coverage/
 # 本地会话/项目笔记，不应提交到公开仓库
 .workbuddy/
+# 本地 SQLite 数据文件（DATABASE_URL 默认指向此处）
+server/data/
