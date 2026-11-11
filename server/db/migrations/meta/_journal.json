@@ -8,6 +8,13 @@
       "when": 1794392884289,
       "tag": "0000_premium_sasquatch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794397259432,
+      "tag": "0001_nebulous_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

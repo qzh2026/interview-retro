@@ -1,32 +1,30 @@
-import type { FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
-import { buildApp } from '../../server/app'
-import { loadConfig } from '../../server/config/env'
-import { createHealthService } from '../../server/modules/health/service'
+import type { ApiErrorBody } from '../../shared/api'
 import type { HealthRepository } from '../../server/modules/health/repository'
 import type { HealthService } from '../../server/modules/health/service'
-import type { ApiErrorBody } from '../../shared/api'
+import { makeTestApp, type TestApp } from './app-helpers'
 
-const config = loadConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' })
 const allowedOrigin = 'http://localhost:5173'
 
 function repoReturning(value: boolean | Promise<boolean>): HealthRepository {
   return { probe: () => Promise.resolve(value) }
 }
 
-async function makeApp(repo: HealthRepository): Promise<FastifyInstance> {
-  return buildApp(config, { healthService: createHealthService(repo, 'test-version') })
-}
-
-let app: FastifyInstance | undefined
+let opened: TestApp | undefined
 afterEach(async () => {
-  await app?.close()
-  app = undefined
+  await opened?.app.close()
+  await opened?.database.close()
+  opened = undefined
 })
+
+async function makeApp(repo: HealthRepository) {
+  opened = await makeTestApp({ healthRepo: repo })
+  return opened.app
+}
 
 describe('health 端点', () => {
   it('/health 返回存活信息并带上安全头与 requestId', async () => {
-    app = await makeApp(repoReturning(true))
+    const app = await makeApp(repoReturning(true))
     const res = await app.inject({ method: 'GET', url: '/health' })
 
     expect(res.statusCode).toBe(200)
@@ -40,14 +38,14 @@ describe('health 端点', () => {
   })
 
   it('/ready 数据库就绪时返回 200', async () => {
-    app = await makeApp(repoReturning(true))
+    const app = await makeApp(repoReturning(true))
     const res = await app.inject({ method: 'GET', url: '/ready' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({ status: 'ready', database: 'ok' })
   })
 
   it('/ready 迁移未应用时返回 503 与规范化错误结构', async () => {
-    app = await makeApp(repoReturning(false))
+    const app = await makeApp(repoReturning(false))
     const res = await app.inject({ method: 'GET', url: '/ready' })
     const body = res.json() as ApiErrorBody
 
@@ -63,7 +61,7 @@ describe('health 端点', () => {
         throw new Error('libSQL internal: secret connection string')
       },
     }
-    app = await makeApp(repo)
+    const app = await makeApp(repo)
     const res = await app.inject({ method: 'GET', url: '/ready' })
 
     expect(res.statusCode).toBe(503)
@@ -72,7 +70,7 @@ describe('health 端点', () => {
   })
 
   it('未知路径返回统一的 404 结构', async () => {
-    app = await makeApp(repoReturning(true))
+    const app = await makeApp(repoReturning(true))
     const res = await app.inject({ method: 'GET', url: '/no-such-route' })
     expect(res.statusCode).toBe(404)
     expect((res.json() as ApiErrorBody).error.code).toBe('NOT_FOUND')
@@ -87,8 +85,8 @@ describe('health 端点', () => {
         return { status: 'ready', database: 'ok', timestamp: new Date().toISOString() }
       },
     }
-    app = await buildApp(config, { healthService: brokenService })
-    const res = await app.inject({ method: 'GET', url: '/health' })
+    opened = await makeTestApp({ healthService: brokenService })
+    const res = await opened.app.inject({ method: 'GET', url: '/health' })
 
     expect(res.statusCode).toBe(500)
     expect(res.body).not.toContain('secret internal detail')
@@ -98,7 +96,7 @@ describe('health 端点', () => {
 
 describe('CORS 显式白名单', () => {
   it('白名单来源的预检请求被允许', async () => {
-    app = await makeApp(repoReturning(true))
+    const app = await makeApp(repoReturning(true))
     const res = await app.inject({
       method: 'OPTIONS',
       url: '/health',
@@ -108,7 +106,7 @@ describe('CORS 显式白名单', () => {
   })
 
   it('白名单外的来源不下发允许头', async () => {
-    app = await makeApp(repoReturning(true))
+    const app = await makeApp(repoReturning(true))
     const res = await app.inject({
       method: 'GET',
       url: '/health',

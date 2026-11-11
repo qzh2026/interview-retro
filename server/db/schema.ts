@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 /**
  * 服务端数据归属的唯一入口。
@@ -39,4 +39,51 @@ export const refreshTokens = sqliteTable('refresh_tokens', {
     .default(sql`(unixepoch())`),
 })
 
-export const schema = { users, refreshTokens }
+/**
+ * 变更日志（append-only）。服务端不参与冲突合并，只保证：
+ * - changeId 幂等（重复 push 跳过）；
+ * - seq 单调递增（pull 的增量游标）；
+ * - 按 user_id 隔离。
+ * 客户端拉取后按字段级 LWW 自行收敛，因此任意推送顺序都收敛到同一结果。
+ */
+export const syncChanges = sqliteTable('sync_changes', {
+  seq: integer('seq').primaryKey({ autoIncrement: true }),
+  changeId: text('change_id').notNull().unique(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  op: text('op').notNull(),
+  /** JSON：{ updatedAt: number, fields?: Record<string, unknown> } */
+  payload: text('payload'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+}, (t) => [
+  // pull 的增量查询路径：WHERE user_id = ? AND seq > ? ORDER BY seq
+  index('sync_changes_user_seq_idx').on(t.userId, t.seq),
+])
+
+/**
+ * 墓碑物化视图：当前处于「已删除」状态的实体。
+ * 变更日志里同样有对应 delete 记录；此表只是查询优化与未来日志压缩的依据。
+ * deletedAt 是客户端毫秒时间戳，参与 LWW 比较。
+ */
+export const tombstones = sqliteTable('tombstones', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  deletedAt: integer('deleted_at').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+}, (t) => [
+  // 同一实体只允许一条墓碑
+  uniqueIndex('tombstones_user_entity_unique').on(t.userId, t.entityType, t.entityId),
+])
+
+export const schema = { users, refreshTokens, syncChanges, tombstones }

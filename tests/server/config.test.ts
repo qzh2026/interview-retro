@@ -49,6 +49,25 @@ describe('loadConfig', () => {
       /至少需要配置一个明确的来源/,
     )
   })
+
+  it('生产环境必须配置 JWT_SECRET', () => {
+    expect(() => loadConfig({ NODE_ENV: 'production', JWT_SECRET: '' })).toThrow(
+      /JWT_SECRET/,
+    )
+    // 缺省也不行
+    expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET/)
+  })
+
+  it('开发环境缺省 JWT_SECRET 时生成临时密钥（不为空且 >=32 字符）', () => {
+    const config = loadConfig({})
+    expect(config.jwtSecret.length).toBeGreaterThanOrEqual(32)
+    // 两次加载互不影响（各自生成）
+    expect(loadConfig({}).jwtSecret).not.toBe(config.jwtSecret)
+  })
+
+  it('JWT_SECRET 太短快速失败', () => {
+    expect(() => loadConfig({ JWT_SECRET: 'short' })).toThrow(ConfigurationError)
+  })
 })
 
 describe('validate 边界校验', () => {

@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { resolve } from 'node:path'
 import { z } from 'zod'
 import { ConfigurationError } from '../errors/app-error'
@@ -17,6 +18,18 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1).default('file:./server/data/interview-retro.db'),
   CORS_ORIGINS: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
   APP_VERSION: z.string().min(1).default('0.1.0'),
+  /** JWT 签名密钥：生产必填（>=32 字符）；开发/测试缺省时生成临时密钥 */
+  JWT_SECRET: z.string().min(32).optional(),
+  /** 访问令牌有效期（秒），默认 15 分钟 */
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().min(60).max(86400).default(900),
+  /** 刷新令牌有效期（天） */
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /** /api/auth/* 每分钟每 IP 的请求上限（防暴力破解） */
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10000).default(10),
+  /** 单次 push 允许的最大变更条数 */
+  SYNC_MAX_CHANGES_PER_PUSH: z.coerce.number().int().min(1).max(1000).default(200),
+  /** 单次 pull 返回的最大变更条数 */
+  SYNC_PULL_LIMIT: z.coerce.number().int().min(1).max(2000).default(500),
 })
 
 export interface AppConfig {
@@ -29,6 +42,13 @@ export interface AppConfig {
   /** 显式来源白名单，生产环境禁止通配符 */
   corsOrigins: string[]
   appVersion: string
+  /** JWT 签名密钥。开发/测试未配置时为进程级临时值（重启即失效，刷新令牌流会重新签发） */
+  jwtSecret: string
+  jwtAccessTtlSeconds: number
+  refreshTokenTtlDays: number
+  authRateLimitMax: number
+  syncMaxChangesPerPush: number
+  syncPullLimit: number
 }
 
 /**
@@ -63,6 +83,15 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new ConfigurationError('生产环境禁止 CORS 通配符，请配置显式来源白名单')
   }
 
+  let jwtSecret = raw.JWT_SECRET
+  if (!jwtSecret) {
+    if (raw.NODE_ENV === 'production') {
+      throw new ConfigurationError('生产环境必须配置 JWT_SECRET（至少 32 字符）')
+    }
+    // 开发/测试临时密钥：仅本进程有效，重启后旧访问令牌失效（刷新令牌流会重新签发）
+    jwtSecret = randomBytes(32).toString('hex')
+  }
+
   return {
     nodeEnv: raw.NODE_ENV,
     isProduction: raw.NODE_ENV === 'production',
@@ -72,5 +101,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: raw.DATABASE_URL,
     corsOrigins,
     appVersion: raw.APP_VERSION,
+    jwtSecret,
+    jwtAccessTtlSeconds: raw.JWT_ACCESS_TTL_SECONDS,
+    refreshTokenTtlDays: raw.REFRESH_TOKEN_TTL_DAYS,
+    authRateLimitMax: raw.AUTH_RATE_LIMIT_MAX,
+    syncMaxChangesPerPush: raw.SYNC_MAX_CHANGES_PER_PUSH,
+    syncPullLimit: raw.SYNC_PULL_LIMIT,
   }
 }

@@ -3,8 +3,13 @@ import { loadConfig, loadEnvFileIfPresent } from './config/env'
 import { createDatabase } from './db/client'
 import { runMigrations } from './db/migrate'
 import { createShutdown } from './lifecycle'
+import { createAuthRepository } from './modules/auth/repository'
+import { createAuthService } from './modules/auth/service'
+import { createTokenVerifier } from './modules/auth/tokens'
 import { createHealthRepository } from './modules/health/repository'
 import { createHealthService } from './modules/health/service'
+import { createSyncRepository } from './modules/sync/repository'
+import { createSyncService } from './modules/sync/service'
 
 const SHUTDOWN_TIMEOUT_MS = 10_000
 
@@ -21,7 +26,17 @@ async function main(): Promise<void> {
       createHealthRepository(database.client),
       config.appVersion,
     )
-    const app = await buildApp(config, { healthService })
+    const tokens = createTokenVerifier(config.jwtSecret, config.jwtAccessTtlSeconds)
+    const authService = createAuthService({
+      repo: createAuthRepository(database.db),
+      tokens,
+      refreshTokenTtlDays: config.refreshTokenTtlDays,
+    })
+    const syncService = createSyncService(createSyncRepository(database.db), {
+      maxChangesPerPush: config.syncMaxChangesPerPush,
+      pullLimit: config.syncPullLimit,
+    })
+    const app = await buildApp(config, { healthService, authService, syncService, tokens })
 
     const shutdown = createShutdown({
       app,

@@ -31,6 +31,13 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
     // Fastify 自身的 schema / 解析错误，带 statusCode 但不含敏感信息
     const statusCode = (error as { statusCode?: number }).statusCode
+    if (statusCode === 429) {
+      request.log.warn({ statusCode }, 'rate limit exceeded')
+      void reply
+        .code(429)
+        .send(body(ERROR_CODES.RATE_LIMITED, '请求过于频繁，请稍后再试', requestId))
+      return
+    }
     if (typeof statusCode === 'number' && statusCode >= 400 && statusCode < 500) {
       request.log.warn({ statusCode }, 'request rejected by framework')
       void reply
