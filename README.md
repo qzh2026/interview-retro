@@ -4,6 +4,8 @@
 
 更重要的是——**它是为扩展而设计的**。核心只定义稳定接口，插件可以在不改动任何核心文件的前提下增加导出格式、导入器、UI 页面、替换存储后端或复习算法。
 
+> **在线 Demo**：[qzh2026.github.io/interview-retro](https://qzh2026.github.io/interview-retro/)（纯静态、本地模式；数据只存你自己的浏览器，可一键载入示例数据）
+
 ## 功能
 
 - **场次管理**：按公司 / 岗位 / 轮次 / 结果记录每场面试，题目挂到场次下
@@ -11,6 +13,7 @@
 - **间隔重复复习**：默认阶梯 1/3/7/15/30/60 天，记住了拉长间隔，没记住打回第一轮
 - **检索与统计**：全文搜索、分类 / 掌握度筛选、低分题优先、知识点分布
 - **数据安全**：纯本地存储，JSON 全量导入导出（含插件配置）
+- **云同步（可选）**：登录后跨设备增量同步（字段级 LWW 合并），断网照常用、恢复自动补齐；不登录则纯本地
 - **插件系统**：12 个扩展点，类型安全，源码内注册，零运行时风险
 
 ## 快速开始
@@ -69,6 +72,7 @@ curl http://127.0.0.1:3001/ready
 | `POST /api/auth/logout`     | 幂等登出，撤销刷新令牌                                       |
 | `POST /api/sync/push`       | 批量推送变更（按 `changeId` 幂等，重试安全）                 |
 | `GET /api/sync/pull?since=` | 按 `seq` 游标增量拉取变更                                    |
+| `POST /api/ai/review`       | AI 复盘代理（可选）：密钥只在服务端 env，按 IP 限流          |
 
 所有错误统一为 `{ "error": { "code", "message", "requestId" } }`，客户端永远拿不到堆栈或内部异常。结构化 JSON 日志带 `requestId`，请求序列化只保留 method / url / requestId，不记录 headers、令牌与隐私数据。`/api/auth/*` 有每分钟每 IP 限流。
 
@@ -79,6 +83,21 @@ curl http://127.0.0.1:3001/ready
 **同步模型**：服务端是「哑变更日志」——`sync_changes`（append-only，`changeId` 幂等）+ `tombstones`（墓碑物化），不参与冲突合并；客户端把本地写入差分成字段级变更上传，拉取时按**字段级 LWW**（时间戳 + changeId 决胜）收敛，任意推送顺序都得到同一状态。前端入口是 `useAsyncStorageAdapter` 注入的混合云适配器（未登录时等价于纯 localStorage），30s 轮询 + 写后防抖推送 + 离线队列。
 
 **数据库**：Drizzle + libSQL（SQLite）。`npm run db:generate` 根据 `server/db/schema.ts` 生成可审查、可回滚的 SQL 到 `server/db/migrations/`，服务启动期自动执行未应用的迁移（幂等）。迁移 0000 建 `users` / `refresh_tokens`，迁移 0001 建 `sync_changes` / `tombstones`。本地数据文件默认在 `server/data/`，已被忽略。
+
+**AI 复盘（可选）**：`POST /api/ai/review` 是 OpenAI 兼容代理（DeepSeek / Kimi / Qwen / OpenAI 等通吃），在 `server/.env` 配 `AI_API_KEY` + `AI_MODEL`（可选 `AI_BASE_URL`）即启用；密钥只进服务端环境变量，前端产物里不存在。产品 UI 默认没有 AI 入口（保持工具聚焦），前端经 `cloud-ai` 插件走 `AiAdapter` 注入，想接自己的 UI 时调用 `reviewWithAi()` 即可。
+
+## 部署
+
+**前端（静态）**：推到 `main` 后 `.github/workflows/deploy-pages.yml` 自动构建并发布 GitHub Pages（产物带 `VITE_BASE=/interview-retro/`）。首次启用需在仓库 Settings → Pages → Source 选 "GitHub Actions"（本仓库已启用）。Pages Demo 是纯静态、不含后端——不登录完全可用，注册/登录会给出友好提示。任何静态空间（OSS / Nginx / 双击 `dist/index.html`）都能托管同一份产物。
+
+**后端（Node 20+）**：任何能跑 Node 的平台都行（Cloud Run / Fly.io / Railway / 自有服务器）：
+
+1. `npm ci && npm run build` 后以 `server/` 启动（生产建议 `npx tsx server/index.ts` 或编译后 `node`）；
+2. 环境变量照 `.env.example`：生产**必填** `JWT_SECRET`，按需设 `CORS_ORIGINS`（显式白名单，前端域名）、`DATABASE_URL`（默认本地 SQLite 文件）；
+3. 前端反代 `/api/*` 到后端（同源部署可免 CORS），或分开部署时把前端域名加进 `CORS_ORIGINS`；
+4. 健康检查：`GET /health`（存活）/ `GET /ready`（数据库就绪）。
+
+**跨域部署提醒**：刷新令牌 Cookie 现为 `SameSite=Lax`，同源或反代部署不受影响；若前后端分属不同站点，需把 Cookie 改为 `SameSite=None; Secure`（要求 HTTPS）。
 
 ## 数据存在哪
 
@@ -385,7 +404,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 
 - P1：Markdown 渲染与代码高亮、面经文本解析增强、按公司 / 岗位统计
 - P2：~~异步存储适配器~~ **已完成**（`AsyncStorageAdapter` + 统一异步网关，repository / stores 已 async 化）；全文检索待做
-- P3：官方 AI 复盘插件（后端代理保管密钥）
+- P3：~~AI 后端代理~~ **已完成**（`POST /api/ai/review`，OpenAI 兼容、密钥只在服务端）；剩余：产品 UI 的 AI 入口（当前经 `AiAdapter` 注入、无界面按钮）
 - P4：~~多端同步（账号 + 增量同步）~~ **已完成**（scrypt + JWT 鉴权、`/api/sync/*`、字段级 LWW、离线队列、30s 轮询）；剩余：同步冲突的可视化 diff、日志压缩
 
 ## 常见问题
@@ -394,7 +413,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 
 **为什么用 hash 路由？** 静态托管不需要服务端 rewrite，本地双击 `dist/index.html` 也能打开。换 history 模式需配置 SPA fallback。
 
-**CI 跑什么？** `.github/workflows/ci.yml` 在 push / PR 时执行 `npm ci` → `npm run typecheck` → `npm run typecheck:server` → `npm test` → `npm run build`，防止第三方 PR 破坏构建。
+**CI 跑什么？** `.github/workflows/ci.yml` 在 push / PR 时执行 `npm ci` → `typecheck` → `typecheck:server` → `typecheck:test` → `lint` → `test` → `build` 七步，防止第三方 PR 破坏构建；`.github/workflows/deploy-pages.yml` 在 push `main` 时另行构建并发布 GitHub Pages Demo。
 
 ## 许可证
 

@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AuthUser, LoginRequest, RegisterRequest } from '../../shared/api'
 import { cloudApi } from '@/services/cloud/api'
-import { toUserMessage } from '@/services/cloud/http'
+import { CLOUD_UNREACHABLE_HINT, isBackendUnreachable, toUserMessage } from '@/services/cloud/http'
 import { session } from '@/services/cloud/session'
 import { handleLogin, handleLogout, syncNow } from '@/services/cloud/engine'
 import { resetSyncStatus } from '@/services/cloud/status'
@@ -32,7 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
       await fn()
       return true
     } catch (err) {
-      error.value = toUserMessage(err)
+      // 连不上后端（在线 Demo 无后端 / 自建服务没起）给专门提示，其余走统一映射
+      error.value = isBackendUnreachable(err) ? CLOUD_UNREACHABLE_HINT : toUserMessage(err)
       return false
     } finally {
       pending.value = false

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiClientError, request, toUserMessage } from '../src/services/cloud/http'
+import {
+  ApiClientError,
+  isBackendUnreachable,
+  request,
+  toUserMessage,
+} from '../src/services/cloud/http'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -61,17 +66,64 @@ describe('网络错误映射', () => {
   it('5xx 响应解析错误体后抛 ApiClientError', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({ error: { code: 'INTERNAL', message: '服务器内部错误，请稍后重试' } }),
-          { status: 500 },
-        ),
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ error: { code: 'INTERNAL', message: '服务器内部错误，请稍后重试' } }),
+            { status: 500 },
+          ),
       ),
     )
     await expect(request('/api/anything', { timeoutMs: 100 })).rejects.toMatchObject({
       code: 'INTERNAL',
       status: 500,
     })
+  })
+
+  it('非 JSON 的 404 响应（如纯静态托管的 404 HTML）映射为 SERVICE_UNREACHABLE', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('<html><body>404</body></html>', { status: 404 })),
+    )
+    await expect(request('/api/auth/login', { timeoutMs: 100 })).rejects.toMatchObject({
+      code: 'SERVICE_UNREACHABLE',
+      status: 404,
+    })
+  })
+
+  it('非 JSON 的 502 响应同样视为后端不可达', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Bad Gateway', { status: 502 })),
+    )
+    await expect(request('/api/anything', { timeoutMs: 100 })).rejects.toMatchObject({
+      code: 'SERVICE_UNREACHABLE',
+    })
+  })
+
+  it('JSON 的 404（真实 API 路由不存在）保留原 code，不误判为不可达', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: '资源不存在' } }), {
+            status: 404,
+          }),
+      ),
+    )
+    await expect(request('/api/anything', { timeoutMs: 100 })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+    expect(isBackendUnreachable(new ApiClientError('NOT_FOUND', '资源不存在', 404))).toBe(false)
+  })
+})
+
+describe('isBackendUnreachable 判定', () => {
+  it('NETWORK / TIMEOUT / SERVICE_UNREACHABLE 均视为连不上后端', () => {
+    expect(isBackendUnreachable(new ApiClientError('NETWORK', 'x', 0))).toBe(true)
+    expect(isBackendUnreachable(new ApiClientError('TIMEOUT', 'x', 0))).toBe(true)
+    expect(isBackendUnreachable(new ApiClientError('SERVICE_UNREACHABLE', 'x', 404))).toBe(true)
+    expect(isBackendUnreachable(new Error('普通错误'))).toBe(false)
   })
 })
 

@@ -30,7 +30,10 @@
         </div>
       </template>
       <template v-else>
-        <p class="muted intro">登录后数据会在多设备间增量同步；不登录也完全可用，数据只存本机。</p>
+        <p class="muted intro">
+          登录后数据会在多设备间增量同步；不登录也完全可用，数据只存本机。云同步依赖自建后端（在线
+          Demo 不含后端，见 README「部署」章节）。
+        </p>
         <div class="setting-row">
           <div><strong>邮箱</strong></div>
           <el-input v-model="authForm.email" style="width: 260px" placeholder="you@example.com" />
@@ -97,6 +100,7 @@
       <div class="backup-actions">
         <el-button type="primary" @click="onExport">导出 JSON 备份</el-button>
         <el-button @click="fileInput?.click()">从 JSON 导入</el-button>
+        <el-button @click="onLoadSample">载入示例数据</el-button>
         <el-button type="danger" plain @click="onClear">清空全部数据</el-button>
         <input
           ref="fileInput"
@@ -231,6 +235,7 @@ import { useAuthStore } from '@/stores/auth'
 import { syncStatus } from '@/services/cloud/status'
 import { toUserMessage } from '@/services/cloud/http'
 import { downloadTextFile } from '@/services/backup'
+import { loadSampleData } from '@/services/sample-data'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import { loadState } from '@/services/storage'
 import { todayISO } from '@/utils/date'
@@ -362,6 +367,24 @@ async function onClear(): Promise<void> {
   await settingsStore.clearAll()
   await Promise.all([interviewStore.refresh(), questionStore.refresh()])
   ElMessage.success('已清空')
+}
+
+async function onLoadSample(): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      '将追加 3 场示例面试与 10 道复盘题（不影响已有数据）。继续？',
+      '载入示例数据',
+      { type: 'info', confirmButtonText: '载入', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    const result = await loadSampleData()
+    ElMessage.success(`已载入 ${result.interviews} 场示例面试、${result.questions} 道题`)
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 
 function onTogglePlugin(id: string, value: unknown): void {

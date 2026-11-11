@@ -42,7 +42,8 @@
       <section class="card">
         <h2 class="section-title">最近的面试</h2>
         <div v-if="interviewStore.sorted.length === 0" class="empty-inline">
-          还没有记录。先添加一场面试，再把被问到的题逐条录进来。
+          <p>还没有记录。先添加一场面试，再把被问到的题逐条录进来。</p>
+          <el-button size="small" @click="onLoadSample">载入示例数据，先看看产品长什么样</el-button>
         </div>
         <div v-else>
           <div
@@ -110,9 +111,12 @@
 </template>
 
 <script setup lang="ts">
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDashboardWidgets } from '@/core/extensions/registry'
 import { useInterviewStore } from '@/stores/interview'
 import { useQuestionStore } from '@/stores/question'
+import { loadSampleData } from '@/services/sample-data'
+import { toUserMessage } from '@/services/cloud/http'
 import { ROUND_OPTIONS, RESULT_OPTIONS, labelOf } from '@/constants'
 import type { InterviewResult } from '@/types'
 import StatCard from '@/components/common/StatCard.vue'
@@ -128,6 +132,24 @@ function resultTagType(result: InterviewResult): 'success' | 'danger' | 'info' |
   if (result === 'withdrawn') return 'warning'
   return 'info'
 }
+
+async function onLoadSample(): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      '将追加 3 场示例面试与 10 道复盘题（不影响已有数据），可随时在「数据与备份」页清空。',
+      '载入示例数据',
+      { type: 'info', confirmButtonText: '载入', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    const result = await loadSampleData()
+    ElMessage.success(`已载入 ${result.interviews} 场示例面试、${result.questions} 道题`)
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
+}
 </script>
 
 <style scoped>
@@ -140,6 +162,9 @@ function resultTagType(result: InterviewResult): 'success' | 'danger' | 'info' |
   color: var(--text-muted);
   font-size: 13px;
   padding: 24px 0;
+}
+.empty-inline p {
+  margin: 0 0 12px;
 }
 .list-row {
   display: flex;

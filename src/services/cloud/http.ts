@@ -38,6 +38,17 @@ export function toUserMessage(err: unknown): string {
   return '操作失败，请稍后重试'
 }
 
+/** 连不上后端的错误（网络断 / 超时 / 静态托管或网关返回的非 JSON 响应），用于给「无后端」友好提示。
+ *  注意：真实后端返回的 JSON 404/5xx 说明服务是活的，不算「连不上」，不在其列。 */
+export function isBackendUnreachable(err: unknown): boolean {
+  if (!(err instanceof ApiClientError)) return false
+  return err.code === 'SERVICE_UNREACHABLE' || err.code === 'NETWORK' || err.code === 'TIMEOUT'
+}
+
+/** 后端不可达时的统一提示：覆盖「在线 Demo 纯静态」与「自建后端没起」两种情形 */
+export const CLOUD_UNREACHABLE_HINT =
+  '连不上云同步后端。在线 Demo 是纯静态部署、不含后端；本地模式不受影响。自建后端见 README「部署」章节。'
+
 /** 带超时的 fetch：超时抛 AbortError（name=AbortError） */
 async function fetchWithTimeout(
   url: string,
@@ -163,7 +174,12 @@ export async function request<T>(
       code = body.error?.code ?? code
       message = body.error?.message ?? message
     } catch {
-      // 响应不是 JSON 时保留默认文案
+      // 响应不是 JSON（如纯静态托管对 /api/* 返回的 404 HTML 页）→ 视为后端不可达，
+      // 让上层能给「在线 Demo 无后端 / 自建后端未启动」的友好提示，而不是抛解析异常
+      if (res.status === 404 || res.status >= 502) {
+        code = 'SERVICE_UNREACHABLE'
+        message = '无法连接云同步服务'
+      }
     }
     throw new ApiClientError(code, message, res.status)
   }
