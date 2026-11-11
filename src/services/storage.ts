@@ -176,7 +176,8 @@ export async function loadState(): Promise<PersistedState> {
     preserveCorruptRaw(raw)
     reportStorageIssue({
       kind: 'corrupt',
-      message: '本地数据无法解析，已保留一份原始副本。请先下载副本再继续录入，否则后续操作会覆盖它。',
+      message:
+        '本地数据无法解析，已保留一份原始副本。请先下载副本再继续录入，否则后续操作会覆盖它。',
       raw,
     })
     return emptyState()

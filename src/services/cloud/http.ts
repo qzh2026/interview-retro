@@ -76,7 +76,11 @@ async function doFetch(path: string, init: RequestOptions): Promise<Response> {
   })
 }
 
-export async function request<T>(path: string, init: RequestOptions = {}, isRetry = false): Promise<T> {
+export async function request<T>(
+  path: string,
+  init: RequestOptions = {},
+  isRetry = false,
+): Promise<T> {
   const maxAttempts = init.retry ? RETRY_DELAYS_MS.length + 1 : 1
   let res: Response | null = null
 

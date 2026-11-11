@@ -22,7 +22,12 @@ export interface AuthRepository {
   findUserByEmail(email: string): Promise<UserRow | null>
   findUserById(id: string): Promise<UserRow | null>
   createUser(row: UserRow): Promise<void>
-  insertRefreshToken(row: { id: string; userId: string; tokenHash: string; expiresAt: Date }): Promise<void>
+  insertRefreshToken(row: {
+    id: string
+    userId: string
+    tokenHash: string
+    expiresAt: Date
+  }): Promise<void>
   findRefreshTokenByHash(tokenHash: string): Promise<RefreshTokenRow | null>
   revokeRefreshToken(id: string, at: Date): Promise<void>
   revokeAllUserTokens(userId: string, at: Date): Promise<void>

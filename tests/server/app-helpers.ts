@@ -54,7 +54,10 @@ export async function makeTestApp(options: MakeTestAppOptions = {}): Promise<Tes
   })
   const healthService =
     options.healthService ??
-    createHealthService(options.healthRepo ?? createHealthRepository(database.client), 'test-version')
+    createHealthService(
+      options.healthRepo ?? createHealthRepository(database.client),
+      'test-version',
+    )
   // 默认 AI 服务未配置（无密钥）：调用会稳定返回 AI_NOT_CONFIGURED，测试可注入 stub 覆盖
   const aiService =
     options.aiService ??

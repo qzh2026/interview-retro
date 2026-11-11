@@ -12,12 +12,22 @@
     <div class="form-row">
       <el-form-item label="分类">
         <el-select v-model="form.category" style="width: 100%">
-          <el-option v-for="o in CATEGORY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          <el-option
+            v-for="o in CATEGORY_OPTIONS"
+            :key="o.value"
+            :label="o.label"
+            :value="o.value"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="难度">
         <el-select v-model="form.difficulty" style="width: 100%">
-          <el-option v-for="o in DIFFICULTY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          <el-option
+            v-for="o in DIFFICULTY_OPTIONS"
+            :key="o.value"
+            :label="o.label"
+            :value="o.value"
+          />
         </el-select>
       </el-form-item>
     </div>
@@ -47,11 +57,21 @@
     </el-form-item>
 
     <el-form-item label="复盘后的正确思路">
-      <el-input v-model="form.idealAnswer" type="textarea" :rows="3" placeholder="查资料 / 问人之后整理的参考答案" />
+      <el-input
+        v-model="form.idealAnswer"
+        type="textarea"
+        :rows="3"
+        placeholder="查资料 / 问人之后整理的参考答案"
+      />
     </el-form-item>
 
     <el-form-item label="踩坑点 · 下次怎么说">
-      <el-input v-model="form.lesson" type="textarea" :rows="2" placeholder="例如：只背了概念，没准备线上实践案例" />
+      <el-input
+        v-model="form.lesson"
+        type="textarea"
+        :rows="2"
+        placeholder="例如：只背了概念，没准备线上实践案例"
+      />
     </el-form-item>
 
     <div class="form-row">
@@ -62,7 +82,12 @@
       </el-form-item>
       <el-form-item label="掌握程度">
         <el-select v-model="form.mastery" style="width: 100%">
-          <el-option v-for="o in MASTERY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          <el-option
+            v-for="o in MASTERY_OPTIONS"
+            :key="o.value"
+            :label="o.label"
+            :value="o.value"
+          />
         </el-select>
       </el-form-item>
     </div>
@@ -78,19 +103,24 @@
 import { reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { QuestionInput } from '@/types'
-import {
-  CATEGORY_OPTIONS,
-  DIFFICULTY_OPTIONS,
-  MASTERY_OPTIONS,
-  RATING_OPTIONS,
-} from '@/constants'
+import { CATEGORY_OPTIONS, DIFFICULTY_OPTIONS, MASTERY_OPTIONS, RATING_OPTIONS } from '@/constants'
 
-const COMMON_TAGS = ['Java', 'MySQL', 'Redis', 'JVM', '网络', '操作系统', '算法', '项目', 'Spring', '前端']
+const COMMON_TAGS = [
+  'Java',
+  'MySQL',
+  'Redis',
+  'JVM',
+  '网络',
+  '操作系统',
+  '算法',
+  '项目',
+  'Spring',
+  '前端',
+]
 
-const props = withDefaults(
-  defineProps<{ defaultInterviewId?: string | null }>(),
-  { defaultInterviewId: null },
-)
+const props = withDefaults(defineProps<{ defaultInterviewId?: string | null }>(), {
+  defaultInterviewId: null,
+})
 const emit = defineEmits<{ submit: [payload: QuestionInput] }>()
 
 function blankForm(): QuestionInput {
@@ -126,7 +156,19 @@ function submit(): void {
 </script>
 
 <style scoped>
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
-.form-actions .muted { font-size: 12px; }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+.form-actions .muted {
+  font-size: 12px;
+}
 </style>

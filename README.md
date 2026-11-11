@@ -59,16 +59,16 @@ curl http://127.0.0.1:3001/health
 curl http://127.0.0.1:3001/ready
 ```
 
-| 端点 | 说明 |
-|---|---|
-| `GET /health` | 进程存活，不查数据库；返回版本与运行时长 |
-| `GET /ready` | 数据库连通且迁移已应用；失败返回 503 |
-| `POST /api/auth/register` | 注册并自动登录；密码用 scrypt 哈希，绝不存明文 |
-| `POST /api/auth/login` | 登录，返回 15 分钟访问令牌（JWT）+ HttpOnly 刷新 Cookie |
-| `POST /api/auth/refresh` | 轮换刷新令牌并签发新访问令牌；旧令牌复用会撤销该用户全部会话 |
-| `POST /api/auth/logout` | 幂等登出，撤销刷新令牌 |
-| `POST /api/sync/push` | 批量推送变更（按 `changeId` 幂等，重试安全） |
-| `GET /api/sync/pull?since=` | 按 `seq` 游标增量拉取变更 |
+| 端点                        | 说明                                                         |
+| --------------------------- | ------------------------------------------------------------ |
+| `GET /health`               | 进程存活，不查数据库；返回版本与运行时长                     |
+| `GET /ready`                | 数据库连通且迁移已应用；失败返回 503                         |
+| `POST /api/auth/register`   | 注册并自动登录；密码用 scrypt 哈希，绝不存明文               |
+| `POST /api/auth/login`      | 登录，返回 15 分钟访问令牌（JWT）+ HttpOnly 刷新 Cookie      |
+| `POST /api/auth/refresh`    | 轮换刷新令牌并签发新访问令牌；旧令牌复用会撤销该用户全部会话 |
+| `POST /api/auth/logout`     | 幂等登出，撤销刷新令牌                                       |
+| `POST /api/sync/push`       | 批量推送变更（按 `changeId` 幂等，重试安全）                 |
+| `GET /api/sync/pull?since=` | 按 `seq` 游标增量拉取变更                                    |
 
 所有错误统一为 `{ "error": { "code", "message", "requestId" } }`，客户端永远拿不到堆栈或内部异常。结构化 JSON 日志带 `requestId`，请求序列化只保留 method / url / requestId，不记录 headers、令牌与隐私数据。`/api/auth/*` 有每分钟每 IP 限流。
 
@@ -139,20 +139,20 @@ src/
 
 ### 扩展点总览
 
-| 扩展点 | 注册方法 | 作用 | 类型 |
-|---|---|---|---|
-| 事件订阅 | `events.on(...)` | 监听生命周期、插件间通信 | 加法 |
-| 存储适配器 | `useStorageAdapter` | 替换底层持久化（同步契约，保持不变） | 替换 |
-| 异步存储适配器 | `useAsyncStorageAdapter` | IndexedDB / 远端同步；注册后优先于同步适配器 | 替换 |
-| AI 适配器 | `useAiAdapter` | 接入大模型复盘 | 替换 |
-| 复习策略 | `useReviewStrategy` | 替换整个间隔算法 | 替换 |
-| 导出格式 | `registerExporter` | 设置页新增导出按钮 | 加法 |
-| 导入格式 | `registerImporter` | 设置页新增导入按钮 | 加法 |
-| 菜单项 | `registerMenuItem` | 侧边栏新增入口 | 加法 |
-| 页面路由 | `registerRoute` | 注册独立页面 | 加法 |
-| 总览卡片 | `registerDashboardWidget` | 总览页新增卡片 | 加法 |
-| 题目面板 | `registerQuestionDetailTab` | 单题页新增 Tab | 加法 |
-| 设置面板 | `registerSettingsPanel` | 设置页新增面板 | 加法 |
+| 扩展点         | 注册方法                    | 作用                                         | 类型 |
+| -------------- | --------------------------- | -------------------------------------------- | ---- |
+| 事件订阅       | `events.on(...)`            | 监听生命周期、插件间通信                     | 加法 |
+| 存储适配器     | `useStorageAdapter`         | 替换底层持久化（同步契约，保持不变）         | 替换 |
+| 异步存储适配器 | `useAsyncStorageAdapter`    | IndexedDB / 远端同步；注册后优先于同步适配器 | 替换 |
+| AI 适配器      | `useAiAdapter`              | 接入大模型复盘                               | 替换 |
+| 复习策略       | `useReviewStrategy`         | 替换整个间隔算法                             | 替换 |
+| 导出格式       | `registerExporter`          | 设置页新增导出按钮                           | 加法 |
+| 导入格式       | `registerImporter`          | 设置页新增导入按钮                           | 加法 |
+| 菜单项         | `registerMenuItem`          | 侧边栏新增入口                               | 加法 |
+| 页面路由       | `registerRoute`             | 注册独立页面                                 | 加法 |
+| 总览卡片       | `registerDashboardWidget`   | 总览页新增卡片                               | 加法 |
+| 题目面板       | `registerQuestionDetailTab` | 单题页新增 Tab                               | 加法 |
+| 设置面板       | `registerSettingsPanel`     | 设置页新增面板                               | 加法 |
 
 另外两个数据扩展位：`Interview.metadata` / `Question.metadata` 供插件存自定义字段（核心不解释、只透传）；`ctx.settings` 提供按插件 id 隔离的持久化配置，并随 JSON 备份一起导出。
 
@@ -165,11 +165,11 @@ import { definePlugin } from '@/sdk'
 
 export default definePlugin({
   manifest: {
-    id: 'me:my-plugin',              // 建议 namespace:name，全局唯一
+    id: 'me:my-plugin', // 建议 namespace:name，全局唯一
     name: '我的插件',
     version: '1.0.0',
     description: '新题录入时打个标记',
-    contributes: ['event'],           // 声明用到的扩展点，设置页会展示
+    contributes: ['event'], // 声明用到的扩展点，设置页会展示
   },
 
   setup({ events, log, settings }) {
@@ -194,22 +194,22 @@ export default definePlugin({
 ```ts
 import myPlugin from './my-plugin'
 
-export const plugins: Plugin[] = [ /* 内置插件 */, myPlugin ]
+export const plugins: Plugin[] = [, /* 内置插件 */ myPlugin]
 ```
 
 刷新页面，打开「数据与备份 → 扩展管理」就能看到它。注释掉这一行，或在面板里关闭开关（刷新后生效），即可卸载。
 
 ### 生命周期事件
 
-| 事件 | payload | 触发时机 |
-|---|---|---|
-| `app:ready` | 无 | 全部插件安装完成后 |
-| `interview:created` / `updated` / `deleted` | `Interview` / `{ id }` | 场次增删改 |
-| `question:created` / `updated` / `deleted` | `Question` / `{ id }` | 题目增删改 |
-| `review:completed` | `{ questionId, remembered, nextReviewAt }` | 复习打卡 |
-| `data:imported` / `data:exported` | `{ interviews, questions }` | 备份导入导出 |
-| `data:cleared` | 无 | 清空数据 |
-| `plugin:message` | `{ from, type, payload }` | 插件间自定义通信 |
+| 事件                                        | payload                                    | 触发时机           |
+| ------------------------------------------- | ------------------------------------------ | ------------------ |
+| `app:ready`                                 | 无                                         | 全部插件安装完成后 |
+| `interview:created` / `updated` / `deleted` | `Interview` / `{ id }`                     | 场次增删改         |
+| `question:created` / `updated` / `deleted`  | `Question` / `{ id }`                      | 题目增删改         |
+| `review:completed`                          | `{ questionId, remembered, nextReviewAt }` | 复习打卡           |
+| `data:imported` / `data:exported`           | `{ interviews, questions }`                | 备份导入导出       |
+| `data:cleared`                              | 无                                         | 清空数据           |
+| `plugin:message`                            | `{ from, type, payload }`                  | 插件间自定义通信   |
 
 `void` 事件调用 `events.emit('data:cleared')` 无需传 payload，其余事件必须传，编译期校验。新增事件只做加法，不修改已有 payload 结构。
 
@@ -354,12 +354,12 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 
 ## 内置示例插件
 
-| 插件 | 演示的扩展点 | 作用 |
-|---|---|---|
-| `builtin:markdown-export` | exporter | 导出按分类分组的 Markdown 笔记 |
-| `builtin:text-import` | importer | 每行一题，批量导入纯文本面经 |
-| `builtin:tag-cloud` | dashboardWidget / menuItem / route | 高频知识点统计，含独立页面 |
-| `builtin:review-log` | event / settingsPanel | 订阅打卡事件，记录最近 50 次复习 |
+| 插件                      | 演示的扩展点                       | 作用                             |
+| ------------------------- | ---------------------------------- | -------------------------------- |
+| `builtin:markdown-export` | exporter                           | 导出按分类分组的 Markdown 笔记   |
+| `builtin:text-import`     | importer                           | 每行一题，批量导入纯文本面经     |
+| `builtin:tag-cloud`       | dashboardWidget / menuItem / route | 高频知识点统计，含独立页面       |
+| `builtin:review-log`      | event / settingsPanel              | 订阅打卡事件，记录最近 50 次复习 |
 
 这 4 个插件本身也是可读的范例代码，建议从它们开始改。
 
@@ -374,7 +374,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
   "exportedAt": "2026-11-11T03:00:00.000Z",
   "interviews": [],
   "questions": [],
-  "settings": { "reviewIntervals": [1,3,7,15,30,60], "dailyReviewLimit": 20 },
+  "settings": { "reviewIntervals": [1, 3, 7, 15, 30, 60], "dailyReviewLimit": 20 },
   "pluginSettings": {}
 }
 ```

@@ -63,8 +63,9 @@ describe('parseBackup 结构校验（纯同步，不涉及存储 IO）', () => {
   })
 
   it('来自更新版本的备份拒绝导入', () => {
-    expect(() => parseBackup(validBackup({ schemaVersion: SCHEMA_VERSION + 1 })))
-      .toThrow(/来自更新的数据版本/)
+    expect(() => parseBackup(validBackup({ schemaVersion: SCHEMA_VERSION + 1 }))).toThrow(
+      /来自更新的数据版本/,
+    )
   })
 
   it('含 null 记录时拒绝导入，且不修改原有数据', async () => {
@@ -89,7 +90,9 @@ describe('applyBackup / buildBackup / clearAllData', () => {
       settings: { ...DEFAULT_SETTINGS },
     })
 
-    await applyBackup(validBackup({ interviews: [makeInterview({ id: 'new', company: '新公司' })] }))
+    await applyBackup(
+      validBackup({ interviews: [makeInterview({ id: 'new', company: '新公司' })] }),
+    )
 
     const state = await loadState()
     expect(state.interviews.map((i) => i.id)).toEqual(['new'])

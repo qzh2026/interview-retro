@@ -111,18 +111,37 @@ function dismissStorageIssue(): void {
 </script>
 
 <style scoped>
-.layout { min-height: 100vh; }
+.layout {
+  min-height: 100vh;
+}
 .sidebar {
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
 }
-.brand { padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 3px; }
-.brand strong { font-size: 17px; letter-spacing: 0.5px; }
-.brand span { font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
-.menu { border-right: none; flex: 1; }
-.menu-badge { margin-left: 8px; }
+.brand {
+  padding: 22px 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.brand strong {
+  font-size: 17px;
+  letter-spacing: 0.5px;
+}
+.brand span {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.menu {
+  border-right: none;
+  flex: 1;
+}
+.menu-badge {
+  margin-left: 8px;
+}
 .sidebar-foot {
   padding: 16px 20px;
   font-size: 11px;
@@ -138,9 +157,24 @@ function dismissStorageIssue(): void {
   justify-content: space-between;
   height: 56px;
 }
-.crumb { font-weight: 600; font-size: 14px; }
-.header-right { font-size: 12px; color: var(--text-muted); }
-.main { padding: 0; background: var(--bg); }
-.health-alert { margin: 16px 16px 0; }
-.health-actions { display: flex; gap: 8px; margin-top: 8px; }
+.crumb {
+  font-weight: 600;
+  font-size: 14px;
+}
+.header-right {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.main {
+  padding: 0;
+  background: var(--bg);
+}
+.health-alert {
+  margin: 16px 16px 0;
+}
+.health-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
 </style>

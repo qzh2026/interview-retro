@@ -45,11 +45,13 @@ beforeEach(() => {
 
 describe('initializeStores 启动期预加载', () => {
   it('一次预加载后首屏即有真实数据，而不是空列表 / 默认设置', async () => {
-    await saveState(state({
-      interviews: [makeInterview({ id: 'i1' })],
-      questions: [makeQuestion({ id: 'q1' })],
-      settings: { reviewIntervals: [2, 4], dailyReviewLimit: 42 },
-    }))
+    await saveState(
+      state({
+        interviews: [makeInterview({ id: 'i1' })],
+        questions: [makeQuestion({ id: 'q1' })],
+        settings: { reviewIntervals: [2, 4], dailyReviewLimit: 42 },
+      }),
+    )
 
     await initializeStores()
 
@@ -78,10 +80,12 @@ describe('store action 端到端', () => {
   })
 
   it('删场次不删题：题目保留，只把 interviewId 置空', async () => {
-    await saveState(state({
-      interviews: [makeInterview({ id: 'i1' })],
-      questions: [makeQuestion({ id: 'q1', interviewId: 'i1' })],
-    }))
+    await saveState(
+      state({
+        interviews: [makeInterview({ id: 'i1' })],
+        questions: [makeQuestion({ id: 'q1', interviewId: 'i1' })],
+      }),
+    )
     await initializeStores()
 
     await useInterviewStore().remove('i1')

@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import {
-  createShutdown,
-  type ShutdownLogger,
-  type ShutdownTarget,
-} from '../../server/lifecycle'
+import { createShutdown, type ShutdownLogger, type ShutdownTarget } from '../../server/lifecycle'
 
 function makeLogger(): ShutdownLogger {
   return { info: vi.fn(), error: vi.fn() }
@@ -36,10 +32,7 @@ describe('createShutdown 优雅停机', () => {
     expect(order).toEqual(['app', 'db'])
     expect(exit).toHaveBeenCalledTimes(1)
     expect(exit).toHaveBeenCalledWith(0)
-    expect(logger.info).toHaveBeenCalledWith(
-      { signal: 'SIGTERM' },
-      'graceful shutdown started',
-    )
+    expect(logger.info).toHaveBeenCalledWith({ signal: 'SIGTERM' }, 'graceful shutdown started')
     expect(logger.error).not.toHaveBeenCalled()
   })
 

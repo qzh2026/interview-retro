@@ -43,7 +43,13 @@ async function main(): Promise<void> {
       model: config.aiModel,
       timeoutMs: config.aiTimeoutMs,
     })
-    const app = await buildApp(config, { healthService, authService, syncService, aiService, tokens })
+    const app = await buildApp(config, {
+      healthService,
+      authService,
+      syncService,
+      aiService,
+      tokens,
+    })
 
     const shutdown = createShutdown({
       app,

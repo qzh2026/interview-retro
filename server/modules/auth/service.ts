@@ -88,11 +88,7 @@ export function createAuthService(deps: AuthServiceDeps): AuthService {
       const email = normalizeEmail(input.email)
       const user = await repo.findUserByEmail(email)
       // 邮箱不存在与密码错误返回同一错误码与文案，避免用户枚举
-      const invalid = new AppError(
-        ERROR_CODES.INVALID_CREDENTIALS,
-        401,
-        '邮箱或密码不正确',
-      )
+      const invalid = new AppError(ERROR_CODES.INVALID_CREDENTIALS, 401, '邮箱或密码不正确')
       if (!user) {
         // 即使用户不存在也跑一次哈希，抹平响应时间差异
         await verifyPassword(input.password, 'scrypt$32768$8$1$AAAA$AAAA')

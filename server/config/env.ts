@@ -12,9 +12,7 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().min(1).default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-  LOG_LEVEL: z
-    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.string().min(1).default('file:./server/data/interview-retro.db'),
   CORS_ORIGINS: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
   APP_VERSION: z.string().min(1).default('0.1.0'),
@@ -78,7 +76,9 @@ export interface AppConfig {
 export function loadEnvFileIfPresent(path: string = resolve(process.cwd(), '.env')): void {
   if (!existsSync(path)) return
   if (typeof process.loadEnvFile !== 'function') {
-    throw new ConfigurationError('当前 Node 版本不支持 process.loadEnvFile，请使用 Node 20.12+ 或 22+')
+    throw new ConfigurationError(
+      '当前 Node 版本不支持 process.loadEnvFile，请使用 Node 20.12+ 或 22+',
+    )
   }
   process.loadEnvFile(path)
 }
@@ -93,7 +93,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const raw = parsed.data
   const corsOrigins = [
-    ...new Set(raw.CORS_ORIGINS.split(',').map((item) => item.trim()).filter(Boolean)),
+    ...new Set(
+      raw.CORS_ORIGINS.split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
   ]
   if (corsOrigins.length === 0) {
     throw new ConfigurationError('CORS_ORIGINS 至少需要配置一个明确的来源')

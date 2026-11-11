@@ -37,10 +37,35 @@ const max = computed(() => Math.max(1, ...tags.value.map((t) => t.count)))
 </script>
 
 <style scoped>
-.bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 12px; }
-.bar-label { width: 120px; color: var(--text-muted); }
-.bar-track { flex: 1; height: 8px; background: var(--primary-soft); border-radius: 6px; overflow: hidden; }
-.bar-fill { height: 100%; background: var(--primary); border-radius: 6px; }
-.bar-value { width: 28px; text-align: right; }
-.muted { font-size: 13px; color: var(--text-muted); }
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.bar-label {
+  width: 120px;
+  color: var(--text-muted);
+}
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--primary-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 6px;
+}
+.bar-value {
+  width: 28px;
+  text-align: right;
+}
+.muted {
+  font-size: 13px;
+  color: var(--text-muted);
+}
 </style>

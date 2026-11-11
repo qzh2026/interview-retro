@@ -57,14 +57,20 @@ export function parseBackup(text: string): PersistedState {
   if (!isRecord(raw)) throw new Error('不是本项目的备份文件，或文件已损坏')
 
   const data = raw as unknown as Partial<BackupPayload>
-  if (data.app !== 'interview-retro' || !Array.isArray(data.interviews) || !Array.isArray(data.questions)) {
+  if (
+    data.app !== 'interview-retro' ||
+    !Array.isArray(data.interviews) ||
+    !Array.isArray(data.questions)
+  ) {
     throw new Error('不是本项目的备份文件，或文件已损坏')
   }
   if (typeof data.schemaVersion === 'number' && data.schemaVersion > SCHEMA_VERSION) {
     throw new Error(`备份来自更新的数据版本（v${data.schemaVersion}），请先升级应用再导入`)
   }
 
-  const badRecords = [...data.interviews, ...data.questions].filter((item) => !isRecord(item)).length
+  const badRecords = [...data.interviews, ...data.questions].filter(
+    (item) => !isRecord(item),
+  ).length
   if (badRecords > 0) {
     throw new Error(`备份中有 ${badRecords} 条记录格式非法，已取消导入（原有数据未被修改）`)
   }

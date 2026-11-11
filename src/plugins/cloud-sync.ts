@@ -1,11 +1,6 @@
 import { definePlugin } from '@/sdk'
 import { createCloudSyncAdapter } from '@/services/cloud/adapter'
-import {
-  configureCloudSync,
-  handleLogin,
-  startPolling,
-  syncNow,
-} from '@/services/cloud/engine'
+import { configureCloudSync, startPolling, syncNow } from '@/services/cloud/engine'
 import { tryRestoreSession } from '@/stores/auth'
 
 /** 启动期网络操作的兜底超时：慢网络不能拖死整个应用启动 */

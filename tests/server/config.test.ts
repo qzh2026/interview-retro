@@ -13,10 +13,7 @@ describe('loadConfig', () => {
     expect(config.port).toBe(3001)
     expect(config.logLevel).toBe('info')
     expect(config.databaseUrl).toBe('file:./server/data/interview-retro.db')
-    expect(config.corsOrigins).toEqual([
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-    ])
+    expect(config.corsOrigins).toEqual(['http://localhost:5173', 'http://127.0.0.1:5173'])
   })
 
   it('CORS 来源去空白、去空项、去重', () => {
@@ -45,15 +42,11 @@ describe('loadConfig', () => {
   })
 
   it('CORS 来源不能全空', () => {
-    expect(() => loadConfig({ CORS_ORIGINS: ' , , ' })).toThrow(
-      /至少需要配置一个明确的来源/,
-    )
+    expect(() => loadConfig({ CORS_ORIGINS: ' , , ' })).toThrow(/至少需要配置一个明确的来源/)
   })
 
   it('生产环境必须配置 JWT_SECRET', () => {
-    expect(() => loadConfig({ NODE_ENV: 'production', JWT_SECRET: '' })).toThrow(
-      /JWT_SECRET/,
-    )
+    expect(() => loadConfig({ NODE_ENV: 'production', JWT_SECRET: '' })).toThrow(/JWT_SECRET/)
     // 缺省也不行
     expect(() => loadConfig({ NODE_ENV: 'production' })).toThrow(/JWT_SECRET/)
   })
@@ -79,7 +72,11 @@ describe('loadConfig', () => {
   })
 
   it('AI 密钥/模型空串视同未配置，baseUrl 去掉末尾斜杠', () => {
-    const config = loadConfig({ AI_API_KEY: '  ', AI_MODEL: '', AI_BASE_URL: 'https://ai.example.com/v1/' })
+    const config = loadConfig({
+      AI_API_KEY: '  ',
+      AI_MODEL: '',
+      AI_BASE_URL: 'https://ai.example.com/v1/',
+    })
     expect(config.aiApiKey).toBeUndefined()
     expect(config.aiModel).toBeUndefined()
     expect(config.aiBaseUrl).toBe('https://ai.example.com/v1')

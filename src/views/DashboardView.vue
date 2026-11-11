@@ -11,8 +11,18 @@
     <div class="stat-grid">
       <StatCard label="面试场次" :value="interviewStore.items.length" hint="累计记录" />
       <StatCard label="累计题目" :value="questionStore.total" hint="复盘的最小粒度" />
-      <StatCard label="未掌握" :value="questionStore.unknownCount" tone="warning" hint="需要重点攻克" />
-      <StatCard label="今日待复习" :value="questionStore.dueCount" tone="primary" hint="按间隔重复到期" />
+      <StatCard
+        label="未掌握"
+        :value="questionStore.unknownCount"
+        tone="warning"
+        hint="需要重点攻克"
+      />
+      <StatCard
+        label="今日待复习"
+        :value="questionStore.dueCount"
+        tone="primary"
+        hint="按间隔重复到期"
+      />
     </div>
 
     <el-alert
@@ -72,12 +82,15 @@
       </section>
     </div>
 
-    <section class="card mt-16" v-if="questionStore.categoryDistribution.length > 0">
+    <section v-if="questionStore.categoryDistribution.length > 0" class="card mt-16">
       <h2 class="section-title">题目分布</h2>
       <div v-for="item in questionStore.categoryDistribution" :key="item.label" class="bar-row">
         <span class="bar-label">{{ item.label }}</span>
         <div class="bar-track">
-          <div class="bar-fill" :style="{ width: `${(item.value / questionStore.total) * 100}%` }" />
+          <div
+            class="bar-fill"
+            :style="{ width: `${(item.value / questionStore.total) * 100}%` }"
+          />
         </div>
         <span class="bar-value">{{ item.value }}</span>
       </div>
@@ -118,22 +131,81 @@ function resultTagType(result: InterviewResult): 'success' | 'danger' | 'info' |
 </script>
 
 <style scoped>
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.empty-inline { color: var(--text-muted); font-size: 13px; padding: 24px 0; }
-.list-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 11px 0; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 13px;
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
-.list-row:last-child { border-bottom: none; }
-.list-row:hover strong { color: var(--primary); }
-.sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
-.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
-.bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 12px; }
-.bar-label { width: 90px; color: var(--text-muted); }
-.bar-track { flex: 1; height: 8px; background: var(--primary-soft); border-radius: 6px; overflow: hidden; }
-.bar-fill { height: 100%; background: var(--primary); border-radius: 6px; }
-.bar-value { width: 28px; text-align: right; }
-.widget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-.plugin-badge { margin-left: 8px; }
-@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+.empty-inline {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 24px 0;
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 13px;
+}
+.list-row:last-child {
+  border-bottom: none;
+}
+.list-row:hover strong {
+  color: var(--primary);
+}
+.sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 340px;
+}
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.bar-label {
+  width: 90px;
+  color: var(--text-muted);
+}
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--primary-soft);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 6px;
+}
+.bar-value {
+  width: 28px;
+  text-align: right;
+}
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.plugin-badge {
+  margin-left: 8px;
+}
+@media (max-width: 900px) {
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

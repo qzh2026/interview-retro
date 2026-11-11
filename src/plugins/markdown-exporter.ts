@@ -38,7 +38,9 @@ export default definePlugin({
           group.forEach((q) => {
             lines.push(`### ${q.content.replace(/\s+/g, ' ')}`, '')
             lines.push(`- 标签：${q.tags.join('、') || '—'}`)
-            lines.push(`- 自评：${q.selfRating} 分 · 掌握度：${labelOf(MASTERY_OPTIONS, q.mastery)}`)
+            lines.push(
+              `- 自评：${q.selfRating} 分 · 掌握度：${labelOf(MASTERY_OPTIONS, q.mastery)}`,
+            )
             lines.push(`- 下次复习：${q.nextReviewAt ?? '—'}`, '')
             lines.push('**当时的回答**', '', q.myAnswer || '（未记录）', '')
             lines.push('**复盘后的正确思路**', '', q.idealAnswer || '（待补充）', '')

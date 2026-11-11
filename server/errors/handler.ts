@@ -2,7 +2,12 @@ import type { FastifyInstance } from 'fastify'
 import { ERROR_CODES, type ApiErrorBody, type ErrorCode } from '../../shared/api'
 import { AppError } from './app-error'
 
-function body(code: ErrorCode, message: string, requestId: string, details?: unknown): ApiErrorBody {
+function body(
+  code: ErrorCode,
+  message: string,
+  requestId: string,
+  details?: unknown,
+): ApiErrorBody {
   return { error: { code, message, requestId, ...(details === undefined ? {} : { details }) } }
 }
 
@@ -50,12 +55,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     // 未知异常：服务端记完整上下文，客户端只拿通用提示
-    request.log.error(
-      { err: error, code: ERROR_CODES.INTERNAL },
-      'unhandled error',
-    )
-    void reply
-      .code(500)
-      .send(body(ERROR_CODES.INTERNAL, '服务器内部错误，请稍后重试', requestId))
+    request.log.error({ err: error, code: ERROR_CODES.INTERNAL }, 'unhandled error')
+    void reply.code(500).send(body(ERROR_CODES.INTERNAL, '服务器内部错误，请稍后重试', requestId))
   })
 }

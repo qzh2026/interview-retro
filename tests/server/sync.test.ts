@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { ApiErrorBody, SyncChangeInput, SyncPullResponse, SyncPushResponse } from '../../shared/api'
+import type {
+  ApiErrorBody,
+  SyncChangeInput,
+  SyncPullResponse,
+  SyncPushResponse,
+} from '../../shared/api'
 import { tombstones } from '../../server/db/schema'
 import { makeTestApp, registerUser } from './app-helpers'
 
@@ -87,7 +92,11 @@ describe('push / pull 基本流程', () => {
     const t = await makeTestApp()
     app = t.app
     const u = await registerUser(app, 'cursor@example.com')
-    await push(app, u.accessToken, [change('change-c01'), change('change-c02'), change('change-c03')])
+    await push(app, u.accessToken, [
+      change('change-c01'),
+      change('change-c02'),
+      change('change-c03'),
+    ])
 
     const pulled = await pull(app, u.accessToken, 1)
     const body = pulled.body as SyncPullResponse
@@ -167,10 +176,7 @@ describe('墓碑物化（LWW）', () => {
     const u = await registerUser(app, 'tomb@example.com')
 
     await push(app, u.accessToken, [change('delete-chg-1', { op: 'delete', updatedAt: 1_000 })])
-    let rows = await t.database.db
-      .select()
-      .from(tombstones)
-      .where(eq(tombstones.userId, u.userId))
+    let rows = await t.database.db.select().from(tombstones).where(eq(tombstones.userId, u.userId))
     expect(rows).toHaveLength(1)
 
     await push(app, u.accessToken, [
@@ -191,9 +197,7 @@ describe('墓碑物化（LWW）', () => {
     const rows = await t.database.db
       .select()
       .from(tombstones)
-      .where(
-        and(eq(tombstones.userId, u.userId), eq(tombstones.entityId, 'q-1')),
-      )
+      .where(and(eq(tombstones.userId, u.userId), eq(tombstones.entityId, 'q-1')))
     expect(rows).toHaveLength(1)
     expect(rows[0].deletedAt).toBe(5_000)
   })

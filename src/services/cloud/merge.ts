@@ -102,7 +102,8 @@ export function mergeChanges(
       const list = listFor(change.entityType)
       if (!list) continue
       const idx = list.findIndex((item) => item.id === change.entityId)
-      const entityTs = idx >= 0 ? parseTime((list[idx] as unknown as Record<string, unknown>).updatedAt) : 0
+      const entityTs =
+        idx >= 0 ? parseTime((list[idx] as unknown as Record<string, unknown>).updatedAt) : 0
       const local = stamp.__entity ?? { t: entityTs, c: '' }
       if (!wins(incoming, local)) continue
       stamp.__entity = incoming
@@ -134,7 +135,8 @@ export function mergeChanges(
       // 复活：必须赢过实体级墓碑（无墓碑视为时间戳 0，直接创建）
       const local = stamp.__entity ?? ZERO_STAMP
       if (!wins(incoming, local)) continue
-      const created = { id: change.entityId, ...(change.fields ?? {}) } as unknown as Interview | Question
+      const created = { id: change.entityId, ...(change.fields ?? {}) } as unknown as
+        Interview | Question
       const createdList = [created, ...list] as EntityList
       if (change.entityType === 'interview') next.interviews = createdList as Interview[]
       else next.questions = createdList as Question[]

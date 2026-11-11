@@ -43,11 +43,13 @@ describe('loadState / saveState', () => {
 
 describe('migrate 字段兜底与脏数据自愈', () => {
   it('为残缺记录补齐默认值与时间戳', async () => {
-    localStorageAdapter.write(JSON.stringify({
-      schemaVersion: 0,
-      interviews: [{ company: 'A' }],
-      questions: [{ content: 'Q1' }],
-    }))
+    localStorageAdapter.write(
+      JSON.stringify({
+        schemaVersion: 0,
+        interviews: [{ company: 'A' }],
+        questions: [{ content: 'Q1' }],
+      }),
+    )
 
     const state = await loadState()
     const interview = state.interviews[0]
@@ -73,10 +75,12 @@ describe('migrate 字段兜底与脏数据自愈', () => {
   })
 
   it('过滤 null / 非对象元素，并原样透传未知字段', async () => {
-    localStorageAdapter.write(JSON.stringify({
-      interviews: [null, 'bad', 42, { id: 'keep', company: 'A', ownerId: 'u1', custom: 1 }],
-      questions: [null, { id: 'q1' }],
-    }))
+    localStorageAdapter.write(
+      JSON.stringify({
+        interviews: [null, 'bad', 42, { id: 'keep', company: 'A', ownerId: 'u1', custom: 1 }],
+        questions: [null, { id: 'q1' }],
+      }),
+    )
 
     const state = await loadState()
     expect(state.interviews).toHaveLength(1)
@@ -89,9 +93,11 @@ describe('migrate 字段兜底与脏数据自愈', () => {
   })
 
   it('settings 非法值回退到默认阶梯与上限', async () => {
-    localStorageAdapter.write(JSON.stringify({
-      settings: { reviewIntervals: [0, -1, 'x', 5, null], dailyReviewLimit: 0 },
-    }))
+    localStorageAdapter.write(
+      JSON.stringify({
+        settings: { reviewIntervals: [0, -1, 'x', 5, null], dailyReviewLimit: 0 },
+      }),
+    )
 
     const settings = (await loadState()).settings
     expect(settings.reviewIntervals).toEqual([5])

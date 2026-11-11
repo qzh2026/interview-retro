@@ -10,7 +10,9 @@
       </div>
       <div class="header-actions">
         <el-button @click="$router.push('/interviews')">返回列表</el-button>
-        <el-button type="primary" :disabled="!interview" @click="dialogVisible = true">+ 添加被问的题</el-button>
+        <el-button type="primary" :disabled="!interview" @click="dialogVisible = true"
+          >+ 添加被问的题</el-button
+        >
       </div>
     </div>
 
@@ -21,20 +23,38 @@
         <div class="flex-between mb-16">
           <h2 class="section-title" style="margin: 0">本场信息</h2>
           <el-select v-model="result" size="small" style="width: 150px" @change="onResultChange">
-            <el-option v-for="o in RESULT_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+            <el-option
+              v-for="o in RESULT_OPTIONS"
+              :key="o.value"
+              :label="o.label"
+              :value="o.value"
+            />
           </el-select>
         </div>
         <div class="meta-grid">
-          <div><span class="muted">渠道</span><div>{{ interview.source || '—' }}</div></div>
-          <div><span class="muted">面试官</span><div>{{ interview.interviewer || '—' }}</div></div>
-          <div><span class="muted">题目数</span><div>{{ questions.length }}</div></div>
+          <div>
+            <span class="muted">渠道</span>
+            <div>{{ interview.source || '—' }}</div>
+          </div>
+          <div>
+            <span class="muted">面试官</span>
+            <div>{{ interview.interviewer || '—' }}</div>
+          </div>
+          <div>
+            <span class="muted">题目数</span>
+            <div>{{ questions.length }}</div>
+          </div>
         </div>
         <div v-if="interview.overallNotes" class="notes">{{ interview.overallNotes }}</div>
       </section>
 
       <section class="card">
         <h2 class="section-title">本场被问到的题（{{ questions.length }}）</h2>
-        <el-empty v-if="questions.length === 0" description="还没有录题，把能想起来的题逐条补上" :image-size="80" />
+        <el-empty
+          v-if="questions.length === 0"
+          description="还没有录题，把能想起来的题逐条补上"
+          :image-size="80"
+        />
         <div v-else>
           <div
             v-for="(q, idx) in questions"
@@ -46,8 +66,7 @@
             <div class="q-body">
               <div class="q-content">{{ q.content }}</div>
               <div class="q-meta">
-                {{ labelOf(CATEGORY_OPTIONS, q.category) }} ·
-                {{ q.selfRating }} 分 ·
+                {{ labelOf(CATEGORY_OPTIONS, q.category) }} · {{ q.selfRating }} 分 ·
                 {{ labelOf(MASTERY_OPTIONS, q.mastery) }}
                 <el-tag v-for="tag in q.tags" :key="tag" size="small" class="tag">{{ tag }}</el-tag>
               </div>
@@ -70,7 +89,13 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useInterviewStore } from '@/stores/interview'
 import { useQuestionStore } from '@/stores/question'
-import { CATEGORY_OPTIONS, MASTERY_OPTIONS, RESULT_OPTIONS, ROUND_OPTIONS, labelOf } from '@/constants'
+import {
+  CATEGORY_OPTIONS,
+  MASTERY_OPTIONS,
+  RESULT_OPTIONS,
+  ROUND_OPTIONS,
+  labelOf,
+} from '@/constants'
 import type { InterviewResult, QuestionInput } from '@/types'
 import QuestionForm from '@/components/common/QuestionForm.vue'
 
@@ -104,18 +129,60 @@ async function onAddQuestion(payload: QuestionInput): Promise<void> {
 </script>
 
 <style scoped>
-.header-actions { display: flex; gap: 10px; }
-.meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; font-size: 13px; }
-.meta-grid .muted { font-size: 11px; display: block; margin-bottom: 5px; }
-.notes { margin-top: 16px; padding: 12px; background: var(--bg); border-radius: 6px; font-size: 13px; white-space: pre-wrap; }
-.question-row {
-  display: flex; align-items: flex-start; gap: 12px; padding: 13px 0;
-  border-bottom: 1px solid var(--border); cursor: pointer;
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
-.question-row:last-child { border-bottom: none; }
-.idx { color: var(--text-muted); font-size: 12px; width: 20px; padding-top: 2px; }
-.q-body { flex: 1; min-width: 0; }
-.q-content { font-size: 13px; line-height: 1.6; }
-.q-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
-.tag { margin-left: 6px; }
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  font-size: 13px;
+}
+.meta-grid .muted {
+  font-size: 11px;
+  display: block;
+  margin-bottom: 5px;
+}
+.notes {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+.question-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.question-row:last-child {
+  border-bottom: none;
+}
+.idx {
+  color: var(--text-muted);
+  font-size: 12px;
+  width: 20px;
+  padding-top: 2px;
+}
+.q-body {
+  flex: 1;
+  min-width: 0;
+}
+.q-content {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.q-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.tag {
+  margin-left: 6px;
+}
 </style>

@@ -24,7 +24,11 @@ describe('注册 / 登录', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    const body = res.json() as { user: { email: string; displayName: string }; accessToken: string; expiresIn: number }
+    const body = res.json() as {
+      user: { email: string; displayName: string }
+      accessToken: string
+      expiresIn: number
+    }
     expect(body.user.email).toBe('alice@example.com') // 邮箱归一化
     expect(body.user.displayName).toBe('Alice')
     expect(body.accessToken).toBeTruthy()
@@ -100,7 +104,11 @@ describe('注册 / 登录', () => {
     })
     const { accessToken } = login.json() as { accessToken: string }
 
-    const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: bearer(accessToken) })
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: bearer(accessToken),
+    })
     expect(me.statusCode).toBe(200)
     expect((me.json() as { user: { email: string } }).user.email).toBe('me@example.com')
   })

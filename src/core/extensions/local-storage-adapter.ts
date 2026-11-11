@@ -24,7 +24,8 @@ export const localStorageAdapter: StorageAdapter = {
         readWarned = true
         reportStorageIssue({
           kind: 'read-failed',
-          message: '无法读取浏览器本地存储（可能是隐私模式或权限限制），请检查浏览器设置后再录入数据。',
+          message:
+            '无法读取浏览器本地存储（可能是隐私模式或权限限制），请检查浏览器设置后再录入数据。',
         })
       }
       return memoryFallback
@@ -41,7 +42,8 @@ export const localStorageAdapter: StorageAdapter = {
         writeWarned = true
         reportStorageIssue({
           kind: 'write-failed',
-          message: '本地存储写入失败（可能是容量已满或隐私模式）。当前改动仅保存在内存中，关闭页面就会丢失，请立刻导出 JSON 备份。',
+          message:
+            '本地存储写入失败（可能是容量已满或隐私模式）。当前改动仅保存在内存中，关闭页面就会丢失，请立刻导出 JSON 备份。',
         })
       }
       console.warn('[storage] 本地存储写入失败，当前数据仅在内存中')

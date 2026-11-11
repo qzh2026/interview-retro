@@ -14,14 +14,26 @@ withDefaults(
     hint?: string
     tone?: 'default' | 'primary' | 'warning' | 'danger'
   }>(),
-  { tone: 'default' },
+  { tone: 'default', hint: '' },
 )
 </script>
 
 <style scoped>
-.stat-card { border-left: 3px solid transparent; }
-.stat-hint { font-size: 11px; color: var(--text-muted); margin-top: 8px; }
-.tone-primary { border-left-color: var(--primary); }
-.tone-warning { border-left-color: var(--warning); }
-.tone-danger { border-left-color: var(--danger); }
+.stat-card {
+  border-left: 3px solid transparent;
+}
+.stat-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.tone-primary {
+  border-left-color: var(--primary);
+}
+.tone-warning {
+  border-left-color: var(--warning);
+}
+.tone-danger {
+  border-left-color: var(--danger);
+}
 </style>

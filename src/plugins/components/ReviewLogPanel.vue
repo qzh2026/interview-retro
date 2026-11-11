@@ -40,9 +40,17 @@ onMounted(reload)
 
 <style scoped>
 .log-row {
-  display: flex; align-items: center; gap: 12px; padding: 8px 0;
-  border-bottom: 1px solid var(--border); font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
 }
-.log-row:last-child { border-bottom: none; }
-.muted { color: var(--text-muted); }
+.log-row:last-child {
+  border-bottom: none;
+}
+.muted {
+  color: var(--text-muted);
+}
 </style>

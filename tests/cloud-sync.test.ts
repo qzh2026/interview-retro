@@ -11,7 +11,7 @@ function makeInterview(id: string, over: Partial<Interview> = {}): Interview {
     id,
     company: 'Acme',
     position: '前端',
-    round: 'first',
+    round: 'tech1',
     date: '2026-01-10',
     result: 'pending',
     metadata: {},
@@ -26,7 +26,7 @@ function makeQuestion(id: string, over: Partial<Question> = {}): Question {
     id,
     interviewId: null,
     content: '什么是闭包？',
-    category: 'js',
+    category: 'tech',
     tags: [],
     difficulty: 3,
     myAnswer: '',
@@ -86,7 +86,10 @@ describe('diffStates 状态差分', () => {
       questions: [makeQuestion('q1', { content: 'B', updatedAt: '2026-02-01T00:00:00.000Z' })],
     })
     const changes = diffStates(prev, next)
-    expect(changes[0].fields && Object.keys(changes[0].fields).sort()).toEqual(['content', 'updatedAt'])
+    expect(changes[0].fields && Object.keys(changes[0].fields).sort()).toEqual([
+      'content',
+      'updatedAt',
+    ])
   })
 
   it('「删场次不删题」表现为 question.interviewId 的 upsert，不产生 delete', () => {
@@ -115,7 +118,11 @@ describe('diffStates 状态差分', () => {
     const changes = diffStates(prev, next)
 
     expect(changes).toHaveLength(1)
-    expect(changes[0]).toMatchObject({ entityType: 'settings', entityId: 'singleton', op: 'upsert' })
+    expect(changes[0]).toMatchObject({
+      entityType: 'settings',
+      entityId: 'singleton',
+      op: 'upsert',
+    })
     expect(changes[0].fields).toEqual({ dailyReviewLimit: 50 })
   })
 
@@ -135,14 +142,32 @@ describe('mergeChanges 字段级 LWW', () => {
 
     const older = mergeChanges(
       state,
-      [record({ changeId: 'c-old', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 100, fields: { content: 'old' } })],
+      [
+        record({
+          changeId: 'c-old',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 100,
+          fields: { content: 'old' },
+        }),
+      ],
       {},
     )
     expect(older.state.questions[0].content).toBe('local')
 
     const newer = mergeChanges(
       older.state,
-      [record({ changeId: 'c-new', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 500, fields: { content: 'new' } })],
+      [
+        record({
+          changeId: 'c-new',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 500,
+          fields: { content: 'new' },
+        }),
+      ],
       older.stamps,
     )
     expect(newer.state.questions[0].content).toBe('new')
@@ -155,14 +180,32 @@ describe('mergeChanges 字段级 LWW', () => {
     })
     const stale = mergeChanges(
       state,
-      [record({ changeId: 'c1', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 150, fields: { content: 'stale' } })],
+      [
+        record({
+          changeId: 'c1',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 150,
+          fields: { content: 'stale' },
+        }),
+      ],
       {},
     )
     expect(stale.state.questions[0].content).toBe('什么是闭包？')
 
     const fresh = mergeChanges(
       state,
-      [record({ changeId: 'c2', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 250, fields: { content: 'fresh' } })],
+      [
+        record({
+          changeId: 'c2',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 250,
+          fields: { content: 'fresh' },
+        }),
+      ],
       {},
     )
     expect(fresh.state.questions[0].content).toBe('fresh')
@@ -172,23 +215,55 @@ describe('mergeChanges 字段级 LWW', () => {
     const state = makeState({
       questions: [makeQuestion('q1', { updatedAt: new Date(50).toISOString() })],
     })
-    const changeA = record({ changeId: 'aaa', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 100, fields: { content: 'from-A' } })
-    const changeB = record({ changeId: 'bbb', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 100, fields: { content: 'from-B' } })
+    const changeA = record({
+      changeId: 'aaa',
+      entityType: 'question',
+      entityId: 'q1',
+      op: 'upsert',
+      updatedAt: 100,
+      fields: { content: 'from-A' },
+    })
+    const changeB = record({
+      changeId: 'bbb',
+      entityType: 'question',
+      entityId: 'q1',
+      op: 'upsert',
+      updatedAt: 100,
+      fields: { content: 'from-B' },
+    })
 
-    const ab = mergeChanges(mergeChanges(state, [changeA], {}).state, [changeB], mergeChanges(state, [changeA], {}).stamps)
-    const ba = mergeChanges(mergeChanges(state, [changeB], {}).state, [changeA], mergeChanges(state, [changeB], {}).stamps)
+    const ab = mergeChanges(
+      mergeChanges(state, [changeA], {}).state,
+      [changeB],
+      mergeChanges(state, [changeA], {}).stamps,
+    )
+    const ba = mergeChanges(
+      mergeChanges(state, [changeB], {}).state,
+      [changeA],
+      mergeChanges(state, [changeB], {}).stamps,
+    )
 
     expect(ab.state.questions[0].content).toBe('from-B')
     expect(ba.state.questions[0].content).toBe('from-B')
   })
 
   it('delete 与 upsert 按实体级时间戳决胜，较新的 upsert 复活实体', () => {
-    const state = makeState({ questions: [makeQuestion('q1', { updatedAt: new Date(1000).toISOString() })] })
+    const state = makeState({
+      questions: [makeQuestion('q1', { updatedAt: new Date(1000).toISOString() })],
+    })
 
     // 删除时间早于实体最后更新 → 不删
     const kept = mergeChanges(
       state,
-      [record({ changeId: 'd1', entityType: 'question', entityId: 'q1', op: 'delete', updatedAt: 500 })],
+      [
+        record({
+          changeId: 'd1',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'delete',
+          updatedAt: 500,
+        }),
+      ],
       {},
     )
     expect(kept.state.questions).toHaveLength(1)
@@ -196,7 +271,15 @@ describe('mergeChanges 字段级 LWW', () => {
     // 删除时间更新 → 删除
     const deleted = mergeChanges(
       kept.state,
-      [record({ changeId: 'd2', entityType: 'question', entityId: 'q1', op: 'delete', updatedAt: 5000 })],
+      [
+        record({
+          changeId: 'd2',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'delete',
+          updatedAt: 5000,
+        }),
+      ],
       kept.stamps,
     )
     expect(deleted.state.questions).toHaveLength(0)
@@ -204,7 +287,16 @@ describe('mergeChanges 字段级 LWW', () => {
     // 复活：更新的 upsert 回来
     const revived = mergeChanges(
       deleted.state,
-      [record({ changeId: 'u1', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 6000, fields: { content: 'back' } })],
+      [
+        record({
+          changeId: 'u1',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 6000,
+          fields: { content: 'back' },
+        }),
+      ],
       deleted.stamps,
     )
     expect(revived.state.questions).toHaveLength(1)
@@ -213,7 +305,16 @@ describe('mergeChanges 字段级 LWW', () => {
     // 陈旧 upsert 不能复活
     const noRevive = mergeChanges(
       deleted.state,
-      [record({ changeId: 'u0', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 4000, fields: { content: 'zombie' } })],
+      [
+        record({
+          changeId: 'u0',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 4000,
+          fields: { content: 'zombie' },
+        }),
+      ],
       deleted.stamps,
     )
     expect(noRevive.state.questions).toHaveLength(0)
@@ -238,7 +339,16 @@ describe('mergeChanges 字段级 LWW', () => {
     // 更旧的远端变更也覆盖不了
     const stale = mergeChanges(
       state,
-      [record({ changeId: 'other', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 200, fields: { content: 'other' } })],
+      [
+        record({
+          changeId: 'other',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 200,
+          fields: { content: 'other' },
+        }),
+      ],
       stamps,
     )
     expect(stale.state.questions[0].content).toBe('mine')
@@ -252,7 +362,16 @@ describe('mergeChanges 字段级 LWW', () => {
 
     mergeChanges(
       state,
-      [record({ changeId: 'c9', entityType: 'question', entityId: 'q1', op: 'upsert', updatedAt: 99, fields: { content: 'mutated' } })],
+      [
+        record({
+          changeId: 'c9',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 99,
+          fields: { content: 'mutated' },
+        }),
+      ],
       stamps,
     )
     expect(JSON.stringify(state)).toBe(stateCopy)
@@ -323,7 +442,14 @@ describe('CloudSyncAdapter 待推送队列', () => {
     adapter.confirmPushed(adapter.takePending().map((c) => c.changeId))
 
     const remote = record(
-      { changeId: 'remote-1', entityType: 'question', entityId: 'q2', op: 'upsert', updatedAt: Date.now(), fields: { content: 'from-remote' } },
+      {
+        changeId: 'remote-1',
+        entityType: 'question',
+        entityId: 'q2',
+        op: 'upsert',
+        updatedAt: Date.now(),
+        fields: { content: 'from-remote' },
+      },
       7,
     )
     adapter.integrateRemote([remote], 7)

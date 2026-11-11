@@ -88,7 +88,10 @@ function upstreamError(message: string, cause?: unknown): AppError {
   return new AppError('AI_UPSTREAM_ERROR', 502, message, undefined, { cause })
 }
 
-export function createAiService(options: AiServiceOptions, fetchImpl: FetchLike = fetch): AiService {
+export function createAiService(
+  options: AiServiceOptions,
+  fetchImpl: FetchLike = fetch,
+): AiService {
   return {
     async review(req: AiReviewRequest): Promise<AiReviewResponse> {
       const { apiKey, model, baseUrl, timeoutMs } = options

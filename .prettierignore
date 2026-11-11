@@ -1,0 +1,7 @@
+dist
+node_modules
+server/data
+coverage
+.workbuddy
+package-lock.json
+*.min.*

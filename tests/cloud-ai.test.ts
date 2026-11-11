@@ -19,10 +19,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 beforeEach(() => {
-  session.setSession(
-    { id: 'u-1', email: 'ai@example.com', displayName: null },
-    'test-access-token',
-  )
+  session.setSession({ id: 'u-1', email: 'ai@example.com', displayName: null }, 'test-access-token')
 })
 
 afterEach(() => {
@@ -49,7 +46,7 @@ describe('cloud-ai 适配器', () => {
 
     expect(result).toEqual(payload)
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('/api/ai/review')
     expect(init.method).toBe('POST')
     const headers = new Headers(init.headers)

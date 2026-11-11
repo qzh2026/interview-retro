@@ -1,8 +1,4 @@
-import type {
-  SyncPullResponse,
-  SyncPushRequest,
-  SyncPushResponse,
-} from '../../../shared/api'
+import type { SyncPullResponse, SyncPushRequest, SyncPushResponse } from '../../../shared/api'
 import { ERROR_CODES } from '../../../shared/api'
 import { AppError } from '../../errors/app-error'
 import type { SyncRepository } from './repository'
@@ -43,7 +39,8 @@ export function createSyncService(
     async pull(userId, since) {
       const cursorBefore = Number.isFinite(since) && since >= 0 ? Math.floor(since) : 0
       const changes = await repo.listChanges(userId, cursorBefore, limits.pullLimit)
-      const cursor = changes.length > 0 ? changes[changes.length - 1].seq : await repo.maxSeq(userId)
+      const cursor =
+        changes.length > 0 ? changes[changes.length - 1].seq : await repo.maxSeq(userId)
       return { cursor, changes }
     },
   }

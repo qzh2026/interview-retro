@@ -9,7 +9,12 @@
     </div>
 
     <div class="card mb-16 filter-bar">
-      <el-input v-model="keyword" clearable placeholder="搜题目 / 回答 / 标签" style="max-width: 320px" />
+      <el-input
+        v-model="keyword"
+        clearable
+        placeholder="搜题目 / 回答 / 标签"
+        style="max-width: 320px"
+      />
       <el-select v-model="category" clearable placeholder="全部分类" style="width: 160px">
         <el-option v-for="o in CATEGORY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
       </el-select>
@@ -34,7 +39,9 @@
         </el-table-column>
         <el-table-column label="自评" width="80" align="center">
           <template #default="{ row }">
-            <el-tag size="small" :type="row.selfRating <= 2 ? 'danger' : 'info'">{{ row.selfRating }} 分</el-tag>
+            <el-tag size="small" :type="row.selfRating <= 2 ? 'danger' : 'info'"
+              >{{ row.selfRating }} 分</el-tag
+            >
           </template>
         </el-table-column>
         <el-table-column label="掌握度" width="110">
@@ -98,8 +105,23 @@ async function onAddQuestion(payload: QuestionInput): Promise<void> {
 </script>
 
 <style scoped>
-.filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.filter-bar .muted { font-size: 12px; margin-left: auto; }
-.q-cell { font-size: 13px; line-height: 1.5; }
-.q-tags { margin-top: 5px; display: flex; gap: 5px; }
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.filter-bar .muted {
+  font-size: 12px;
+  margin-left: auto;
+}
+.q-cell {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.q-tags {
+  margin-top: 5px;
+  display: flex;
+  gap: 5px;
+}
 </style>

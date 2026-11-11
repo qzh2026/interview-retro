@@ -6,11 +6,7 @@
       <el-button size="small" @click="retry">重试</el-button>
     </template>
   </el-alert>
-  <component
-    v-else
-    :is="boundaryProps.component"
-    v-bind="boundaryProps.componentProps ?? {}"
-  />
+  <component :is="boundaryProps.component" v-else v-bind="boundaryProps.componentProps ?? {}" />
 </template>
 
 <script setup lang="ts">
@@ -43,6 +39,13 @@ function retry(): void {
 </script>
 
 <style scoped>
-.plugin-error { margin: 8px 0; }
-.msg { font-size: 12px; color: var(--text-muted); margin: 6px 0 10px; word-break: break-all; }
+.plugin-error {
+  margin: 8px 0;
+}
+.msg {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 6px 0 10px;
+  word-break: break-all;
+}
 </style>

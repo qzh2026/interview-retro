@@ -26,6 +26,13 @@ const tags = computed(() => {
 </script>
 
 <style scoped>
-.tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.muted { font-size: 12px; color: var(--text-muted); }
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.muted {
+  font-size: 12px;
+  color: var(--text-muted);
+}
 </style>

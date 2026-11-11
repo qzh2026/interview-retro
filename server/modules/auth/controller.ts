@@ -52,9 +52,10 @@ export async function authenticate(
   tokens: TokenVerifier,
 ): Promise<AccessClaims> {
   const header = request.headers.authorization
-  const token = typeof header === 'string' && header.startsWith('Bearer ')
-    ? header.slice('Bearer '.length).trim()
-    : ''
+  const token =
+    typeof header === 'string' && header.startsWith('Bearer ')
+      ? header.slice('Bearer '.length).trim()
+      : ''
   if (!token) throw AppError.unauthorized()
   return tokens.verifyAccess(token)
 }

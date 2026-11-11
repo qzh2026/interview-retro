@@ -23,27 +23,54 @@
         <div class="form-row mt-16">
           <el-form-item label="分类">
             <el-select v-model="draft.category" style="width: 100%">
-              <el-option v-for="o in CATEGORY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              <el-option
+                v-for="o in CATEGORY_OPTIONS"
+                :key="o.value"
+                :label="o.label"
+                :value="o.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="难度">
             <el-select v-model="draft.difficulty" style="width: 100%">
-              <el-option v-for="o in DIFFICULTY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              <el-option
+                v-for="o in DIFFICULTY_OPTIONS"
+                :key="o.value"
+                :label="o.label"
+                :value="o.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="自评">
             <el-select v-model="draft.selfRating" style="width: 100%">
-              <el-option v-for="o in RATING_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              <el-option
+                v-for="o in RATING_OPTIONS"
+                :key="o.value"
+                :label="o.label"
+                :value="o.value"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="掌握度">
             <el-select v-model="draft.mastery" style="width: 100%">
-              <el-option v-for="o in MASTERY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              <el-option
+                v-for="o in MASTERY_OPTIONS"
+                :key="o.value"
+                :label="o.label"
+                :value="o.value"
+              />
             </el-select>
           </el-form-item>
         </div>
         <el-form-item label="知识点标签">
-          <el-select v-model="draft.tags" multiple filterable allow-create default-first-option style="width: 100%">
+          <el-select
+            v-model="draft.tags"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            style="width: 100%"
+          >
             <el-option v-for="tag in draft.tags" :key="tag" :label="tag" :value="tag" />
           </el-select>
         </el-form-item>
@@ -56,7 +83,12 @@
         </section>
         <section class="card">
           <h2 class="section-title">复盘后的正确思路</h2>
-          <el-input v-model="draft.idealAnswer" type="textarea" :rows="7" placeholder="查资料后整理" />
+          <el-input
+            v-model="draft.idealAnswer"
+            type="textarea"
+            :rows="7"
+            placeholder="查资料后整理"
+          />
         </section>
       </div>
 
@@ -70,7 +102,9 @@
           <strong>复习打卡</strong>
           <div class="muted">
             已复习 {{ question.reviewCount }} 次 · 下次 {{ question.nextReviewAt || '—' }}
-            <span v-if="question.lastReviewedAt"> · 上次 {{ formatDateTime(question.lastReviewedAt) }}</span>
+            <span v-if="question.lastReviewedAt">
+              · 上次 {{ formatDateTime(question.lastReviewedAt) }}</span
+            >
           </div>
         </div>
         <div class="review-actions">
@@ -167,14 +201,40 @@ async function onDelete(): Promise<void> {
 </script>
 
 <style scoped>
-.header-actions { display: flex; gap: 10px; }
-.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.review-panel { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.review-panel .muted { font-size: 12px; margin-top: 5px; }
-.review-actions { display: flex; gap: 10px; }
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.review-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.review-panel .muted {
+  font-size: 12px;
+  margin-top: 5px;
+}
+.review-actions {
+  display: flex;
+  gap: 10px;
+}
 @media (max-width: 900px) {
-  .form-row { grid-template-columns: repeat(2, 1fr); }
-  .compare-grid { grid-template-columns: 1fr; }
+  .form-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -19,13 +19,13 @@
 
 ## 2. Phase 1 五项架构决策
 
-| 决策 | 结论 | 理由 |
-|---|---|---|
-| 项目结构 | 保持 `src/` 原地不动，新增平级 `server/`（按功能分 auth / sync / ai / health）与 `shared/`（领域类型 + DTO + 错误码） | 不搬迁前端目录，README 中所有路径与插件示例继续有效；后端按功能组织，controller → service → repository 三层 |
-| API 客户端 | 类型化 fetch 封装（不引 React Query / tRPC），Base URL 走环境变量 | 前端是 Vue + Pinia，现有 store 可直接承载加载与错误态；跨端类型靠 `shared/` 共享 |
-| 认证策略 | JWT 访问令牌 15min 只放内存 + 刷新令牌 HttpOnly / Secure / SameSite=Strict Cookie，服务端存 hash 可撤销；401 自动刷新重试一次；单用户起步，RBAC 留接口 | 令牌不落本地存储、不进 URL；刷新令牌可服务端作废 |
-| 实时方案 | 页面可见时 30s 轮询 + 手动同步起步，后置 SSE（只推「有变更」信号，收到再 pull）；不引 WebSocket | 单人私用、同步频率低，SSE 单向且自动重连、走 HTTP 兼容跨域 |
-| 错误处理 | 后端类型化 `AppError(code, status)` + 全局中间件，统一 `{ error: { code, message, requestId } }`；结构化 JSON 日志带 requestId，不记令牌与隐私数据。前端 4xx 映射可读文案且不重试，5xx 指数退避最多 3 次，网络失败显示离线提示并回落本地模式 | 客户端永不看到堆栈，离线优先语义与错误态一致 |
+| 决策       | 结论                                                                                                                                                                                                                                         | 理由                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 项目结构   | 保持 `src/` 原地不动，新增平级 `server/`（按功能分 auth / sync / ai / health）与 `shared/`（领域类型 + DTO + 错误码）                                                                                                                        | 不搬迁前端目录，README 中所有路径与插件示例继续有效；后端按功能组织，controller → service → repository 三层 |
+| API 客户端 | 类型化 fetch 封装（不引 React Query / tRPC），Base URL 走环境变量                                                                                                                                                                            | 前端是 Vue + Pinia，现有 store 可直接承载加载与错误态；跨端类型靠 `shared/` 共享                            |
+| 认证策略   | JWT 访问令牌 15min 只放内存 + 刷新令牌 HttpOnly / Secure / SameSite=Strict Cookie，服务端存 hash 可撤销；401 自动刷新重试一次；单用户起步，RBAC 留接口                                                                                       | 令牌不落本地存储、不进 URL；刷新令牌可服务端作废                                                            |
+| 实时方案   | 页面可见时 30s 轮询 + 手动同步起步，后置 SSE（只推「有变更」信号，收到再 pull）；不引 WebSocket                                                                                                                                              | 单人私用、同步频率低，SSE 单向且自动重连、走 HTTP 兼容跨域                                                  |
+| 错误处理   | 后端类型化 `AppError(code, status)` + 全局中间件，统一 `{ error: { code, message, requestId } }`；结构化 JSON 日志带 requestId，不记令牌与隐私数据。前端 4xx 映射可读文案且不重试，5xx 指数退避最多 3 次，网络失败显示离线提示并回落本地模式 | 客户端永不看到堆栈，离线优先语义与错误态一致                                                                |
 
 ## 3. 不可破坏的契约
 
@@ -60,15 +60,15 @@
 
 ## 4. 端点草案
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| POST | `/api/auth/register` `/login` `/refresh` `/logout` | 刷新令牌走 Cookie，logout 服务端撤销 |
-| GET | `/api/sync/pull?since=<iso>` | 增量变更 + tombstones + serverTime |
-| POST | `/api/sync/push` | 批量变更，`changeId` 幂等，返回 applied / conflicts |
-| GET | `/api/sync/events` | SSE 变更信号（后置） |
-| POST | `/api/ai/review` | 后端代理，密钥只在服务端 env；限流 |
-| GET | `/health` `/ready` | 存活 / 就绪（含数据库连通性） |
-| GET | `/api/backup/export` | 可选：服务端备份下载，与前端 JSON 格式一致 |
+| 方法 | 路径                                               | 说明                                                |
+| ---- | -------------------------------------------------- | --------------------------------------------------- |
+| POST | `/api/auth/register` `/login` `/refresh` `/logout` | 刷新令牌走 Cookie，logout 服务端撤销                |
+| GET  | `/api/sync/pull?since=<iso>`                       | 增量变更 + tombstones + serverTime                  |
+| POST | `/api/sync/push`                                   | 批量变更，`changeId` 幂等，返回 applied / conflicts |
+| GET  | `/api/sync/events`                                 | SSE 变更信号（后置）                                |
+| POST | `/api/ai/review`                                   | 后端代理，密钥只在服务端 env；限流                  |
+| GET  | `/health` `/ready`                                 | 存活 / 就绪（含数据库连通性）                       |
+| GET  | `/api/backup/export`                               | 可选：服务端备份下载，与前端 JSON 格式一致          |
 
 ## 5. 环境变量
 
@@ -78,16 +78,16 @@
 
 ## 6. 分阶段计划
 
-| Stage | 内容 | 验收 |
-|---|---|---|
-| 0 | 版本控制基线：初始化仓库、基线提交与 tag、CI | 可回滚基线，CI 全绿 |
-| 1 | vitest 安全网：覆盖 `storage/migrate`、`parseBackup`、`repository`；CI 加 test | `npm test` + typecheck + build |
-| 2 | `shared/` 类型抽取 + `PersistenceGateway` async 化 + 本地适配器可回退 | 三件套全绿，本地模式行为零变化 |
-| 3 | 后端骨架：集中配置校验 / 错误体系 / JSON 日志 / 迁移与连接池 / health·ready / CORS / 安全头 / 优雅停机 | curl 冒烟 + `typecheck:server` |
-| 4 | 鉴权 + push/pull 同步 + 字段级 LWW + 离线队列 + 轮询 | 双端增量同步、断网写入恢复 |
-| 5 | `/api/ai/review` 代理 + `useAiAdapter` 插件（默认仍禁用） | 密钥不出现在前端产物 |
-| 6 | 类型化 API 客户端 + 加载/错误/离线态 + ESLint/Prettier + SSE 后置 | CI 四项全绿 |
-| 7 | Pages workflow + 在线 Demo + README 全栈章节 + 后端部署 | 静态 Demo 可访问，生产 CORS 非通配符 |
+| Stage | 内容                                                                                                   | 验收                                 |
+| ----- | ------------------------------------------------------------------------------------------------------ | ------------------------------------ |
+| 0     | 版本控制基线：初始化仓库、基线提交与 tag、CI                                                           | 可回滚基线，CI 全绿                  |
+| 1     | vitest 安全网：覆盖 `storage/migrate`、`parseBackup`、`repository`；CI 加 test                         | `npm test` + typecheck + build       |
+| 2     | `shared/` 类型抽取 + `PersistenceGateway` async 化 + 本地适配器可回退                                  | 三件套全绿，本地模式行为零变化       |
+| 3     | 后端骨架：集中配置校验 / 错误体系 / JSON 日志 / 迁移与连接池 / health·ready / CORS / 安全头 / 优雅停机 | curl 冒烟 + `typecheck:server`       |
+| 4     | 鉴权 + push/pull 同步 + 字段级 LWW + 离线队列 + 轮询                                                   | 双端增量同步、断网写入恢复           |
+| 5     | `/api/ai/review` 代理 + `useAiAdapter` 插件（默认仍禁用）                                              | 密钥不出现在前端产物                 |
+| 6     | 类型化 API 客户端 + 加载/错误/离线态 + ESLint/Prettier + SSE 后置                                      | CI 四项全绿                          |
+| 7     | Pages workflow + 在线 Demo + README 全栈章节 + 后端部署                                                | 静态 Demo 可访问，生产 CORS 非通配符 |
 
 **横切规则**：每步一个提交，每步单独跑 typecheck + build（Stage 1 起加 `npm test`，Stage 3 起加 `typecheck:server`）；一个 Stage 不绿不进下一个；新增依赖先列清单与用途再安装。
 

@@ -21,9 +21,7 @@ export const useInterviewStore = defineStore('interviews', () => {
     items.value = await repo.all()
   }
 
-  const sorted = computed(() =>
-    [...items.value].sort((a, b) => b.date.localeCompare(a.date)),
-  )
+  const sorted = computed(() => [...items.value].sort((a, b) => b.date.localeCompare(a.date)))
 
   function getById(id: string): Interview | null {
     return items.value.find((item) => item.id === id) ?? null

@@ -54,9 +54,7 @@
       "indexes": {
         "refresh_tokens_token_hash_unique": {
           "name": "refresh_tokens_token_hash_unique",
-          "columns": [
-            "token_hash"
-          ],
+          "columns": ["token_hash"],
           "isUnique": true
         }
       },
@@ -65,12 +63,8 @@
           "name": "refresh_tokens_user_id_users_id_fk",
           "tableFrom": "refresh_tokens",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -143,17 +137,12 @@
       "indexes": {
         "sync_changes_change_id_unique": {
           "name": "sync_changes_change_id_unique",
-          "columns": [
-            "change_id"
-          ],
+          "columns": ["change_id"],
           "isUnique": true
         },
         "sync_changes_user_seq_idx": {
           "name": "sync_changes_user_seq_idx",
-          "columns": [
-            "user_id",
-            "seq"
-          ],
+          "columns": ["user_id", "seq"],
           "isUnique": false
         }
       },
@@ -162,12 +151,8 @@
           "name": "sync_changes_user_id_users_id_fk",
           "tableFrom": "sync_changes",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -226,11 +211,7 @@
       "indexes": {
         "tombstones_user_entity_unique": {
           "name": "tombstones_user_entity_unique",
-          "columns": [
-            "user_id",
-            "entity_type",
-            "entity_id"
-          ],
+          "columns": ["user_id", "entity_type", "entity_id"],
           "isUnique": true
         }
       },
@@ -239,12 +220,8 @@
           "name": "tombstones_user_id_users_id_fk",
           "tableFrom": "tombstones",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -304,9 +281,7 @@
       "indexes": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "isUnique": true
         }
       },

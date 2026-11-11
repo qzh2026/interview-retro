@@ -15,8 +15,12 @@
             <strong>已登录：{{ authStore.user?.email }}</strong>
             <div class="muted">
               {{ syncStatus.message }}
-              <template v-if="syncStatus.lastSyncAt"> · 上次同步 {{ formatTime(syncStatus.lastSyncAt) }}</template>
-              <template v-if="syncStatus.pendingCount > 0"> · 待推送 {{ syncStatus.pendingCount }} 条</template>
+              <template v-if="syncStatus.lastSyncAt">
+                · 上次同步 {{ formatTime(syncStatus.lastSyncAt) }}</template
+              >
+              <template v-if="syncStatus.pendingCount > 0">
+                · 待推送 {{ syncStatus.pendingCount }} 条</template
+              >
             </div>
           </div>
           <div>
@@ -76,19 +80,36 @@
         </div>
         <el-input-number v-model="dailyLimit" :min="1" :max="200" />
       </div>
-      <div class="right"><el-button type="primary" @click="onSaveSettings">保存设置</el-button></div>
+      <div class="right">
+        <el-button type="primary" @click="onSaveSettings">保存设置</el-button>
+      </div>
     </section>
 
     <section class="card mb-16">
       <h2 class="section-title">备份与恢复</h2>
-      <el-alert type="warning" :closable="false" show-icon class="mb-16" title="清除浏览器数据 / 换电脑 / 换浏览器都会导致数据丢失，建议每周导出一次" />
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        class="mb-16"
+        title="清除浏览器数据 / 换电脑 / 换浏览器都会导致数据丢失，建议每周导出一次"
+      />
       <div class="backup-actions">
         <el-button type="primary" @click="onExport">导出 JSON 备份</el-button>
         <el-button @click="fileInput?.click()">从 JSON 导入</el-button>
         <el-button type="danger" plain @click="onClear">清空全部数据</el-button>
-        <input ref="fileInput" type="file" accept=".json,application/json" hidden @change="onFileChange" />
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".json,application/json"
+          hidden
+          @change="onFileChange"
+        />
       </div>
-      <div class="muted usage">当前：{{ settingsStore.usage.count }} 条记录，约 {{ settingsStore.usage.kb }} KB（本地存储上限约 5 MB）</div>
+      <div class="muted usage">
+        当前：{{ settingsStore.usage.count }} 条记录，约
+        {{ settingsStore.usage.kb }} KB（本地存储上限约 5 MB）
+      </div>
     </section>
 
     <section class="card mb-16">
@@ -117,16 +138,28 @@
         </el-table-column>
         <el-table-column label="启用" width="90" align="center">
           <template #default="{ row }">
-            <el-switch :model-value="row.enabled" @change="onTogglePlugin(row.manifest.id, $event)" />
+            <el-switch
+              :model-value="row.enabled"
+              @change="onTogglePlugin(row.manifest.id, $event)"
+            />
           </template>
         </el-table-column>
       </el-table>
 
       <div class="adapter-line mb-16">
-        <span>存储：<strong>{{ adapters.storage.label }}</strong></span>
-        <span v-if="adapters.asyncStorage">云同步：<strong>{{ adapters.asyncStorage.label }}</strong>（优先）</span>
-        <span>AI：<strong>{{ adapters.ai.label }}</strong></span>
-        <span>复习策略：<strong>{{ adapters.review.label }}</strong></span>
+        <span
+          >存储：<strong>{{ adapters.storage.label }}</strong></span
+        >
+        <span v-if="adapters.asyncStorage"
+          >云同步：<strong>{{ adapters.asyncStorage.label }}</strong
+          >（优先）</span
+        >
+        <span
+          >AI：<strong>{{ adapters.ai.label }}</strong></span
+        >
+        <span
+          >复习策略：<strong>{{ adapters.review.label }}</strong></span
+        >
       </div>
 
       <div class="sub-section">
@@ -146,7 +179,13 @@
             {{ format.label }}
           </el-button>
           <span v-if="importers.length === 0" class="muted">暂无插件注册的导入格式</span>
-          <input ref="importInput" type="file" :accept="acceptAttr" hidden @change="onImportFileChange" />
+          <input
+            ref="importInput"
+            type="file"
+            :accept="acceptAttr"
+            hidden
+            @change="onImportFileChange"
+          />
         </div>
       </div>
     </section>
@@ -164,7 +203,9 @@
       <h2 class="section-title">架构备注</h2>
       <ul class="notes">
         <li>纯前端单机版：无账号、无后端、无数据库，构建产物可直接静态托管。</li>
-        <li>核心代码只依赖 <code>src/sdk</code> 里的接口，插件通过注册表注入实现，不改动核心文件。</li>
+        <li>
+          核心代码只依赖 <code>src/sdk</code> 里的接口，插件通过注册表注入实现，不改动核心文件。
+        </li>
         <li>插件配置随 JSON 备份一起导出 / 恢复；<code>metadata</code> 字段供插件存自定义数据。</li>
         <li>AI 接入必须通过后端代理保管密钥，不要写进前端环境变量。</li>
       </ul>
@@ -226,7 +267,10 @@ function formatTime(iso: string): string {
 }
 
 async function onLogin(): Promise<void> {
-  const ok = await authStore.login({ email: authForm.value.email, password: authForm.value.password })
+  const ok = await authStore.login({
+    email: authForm.value.email,
+    password: authForm.value.password,
+  })
   if (ok) ElMessage.success('登录成功，已开始与云端同步')
 }
 
@@ -283,10 +327,14 @@ async function onFileChange(event: Event): Promise<void> {
   const file = target.files?.[0]
   if (!file) return
   try {
-    await ElMessageBox.confirm('导入会覆盖当前全部数据，建议先导出一份备份。确定继续？', '覆盖导入', {
-      type: 'warning',
-      confirmButtonText: '确认导入',
-    })
+    await ElMessageBox.confirm(
+      '导入会覆盖当前全部数据，建议先导出一份备份。确定继续？',
+      '覆盖导入',
+      {
+        type: 'warning',
+        confirmButtonText: '确认导入',
+      },
+    )
     await settingsStore.importFromText(await file.text())
     await Promise.all([interviewStore.refresh(), questionStore.refresh()])
     intervalText.value = settingsStore.settings.reviewIntervals.join(', ')
@@ -370,20 +418,74 @@ async function onImportFileChange(event: Event): Promise<void> {
 
 <style scoped>
 .setting-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
 }
-.setting-row:last-of-type { border-bottom: none; }
-.setting-row .muted { font-size: 11px; margin-top: 4px; }
-.right { display: flex; justify-content: flex-end; margin-top: 14px; }
-.backup-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.usage { font-size: 12px; margin-top: 14px; }
-.intro { font-size: 12px; line-height: 1.8; margin: 0 0 16px; }
-.intro code, .notes code { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
-.point-tag { margin-right: 6px; margin-bottom: 4px; }
-.adapter-line { display: flex; gap: 24px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
-.adapter-line strong { color: var(--text); }
-.sub-section { margin-top: 16px; }
-.sub-title { font-size: 13px; font-weight: 500; margin: 0 0 10px; }
-.notes { font-size: 13px; line-height: 2; color: var(--text-muted); padding-left: 18px; margin: 0; }
+.setting-row:last-of-type {
+  border-bottom: none;
+}
+.setting-row .muted {
+  font-size: 11px;
+  margin-top: 4px;
+}
+.right {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.backup-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.usage {
+  font-size: 12px;
+  margin-top: 14px;
+}
+.intro {
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 0 0 16px;
+}
+.intro code,
+.notes code {
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.point-tag {
+  margin-right: 6px;
+  margin-bottom: 4px;
+}
+.adapter-line {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.adapter-line strong {
+  color: var(--text);
+}
+.sub-section {
+  margin-top: 16px;
+}
+.sub-title {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0 0 10px;
+}
+.notes {
+  font-size: 13px;
+  line-height: 2;
+  color: var(--text-muted);
+  padding-left: 18px;
+  margin: 0;
+}
 </style>

@@ -37,7 +37,9 @@ describe('createRepository CRUD', () => {
 
   it('update 合并 patch 并刷新 updatedAt；不存在的 id 返回 null', async () => {
     const repo = createRepository('questions')
-    await repo.insert(makeQuestion({ id: 'q1', content: '旧答案', updatedAt: '2020-01-01T00:00:00.000Z' }))
+    await repo.insert(
+      makeQuestion({ id: 'q1', content: '旧答案', updatedAt: '2020-01-01T00:00:00.000Z' }),
+    )
 
     const next = await repo.update('q1', { content: '新答案' })
     expect(next?.content).toBe('新答案')
@@ -63,11 +65,7 @@ describe('批量导入的写入次数契约', () => {
   it('insertMany 三条只落盘一次', async () => {
     const writeSpy = vi.spyOn(localStorageAdapter, 'write')
     const repo = createRepository('questions')
-    const items = [
-      makeQuestion({ id: 'a' }),
-      makeQuestion({ id: 'b' }),
-      makeQuestion({ id: 'c' }),
-    ]
+    const items = [makeQuestion({ id: 'a' }), makeQuestion({ id: 'b' }), makeQuestion({ id: 'c' })]
 
     const result = await repo.insertMany(items)
     expect(result).toHaveLength(3)

@@ -2,7 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AiReviewRequest, AiReviewResponse, ApiErrorBody } from '../../shared/api'
 import type { AiService } from '../../server/modules/ai/service'
-import { createAiService, parseReviewContent, type FetchLike } from '../../server/modules/ai/service'
+import {
+  createAiService,
+  parseReviewContent,
+  type FetchLike,
+} from '../../server/modules/ai/service'
 import { makeTestApp, registerUser } from './app-helpers'
 
 let app: FastifyInstance | undefined
@@ -48,7 +52,7 @@ function bearer(token: string): Record<string, string> {
 async function review(
   app: FastifyInstance,
   token: string | null,
-  payload: unknown,
+  payload: AiReviewRequest | Partial<AiReviewRequest>,
 ): Promise<{ statusCode: number; body: AiReviewResponse | ApiErrorBody }> {
   const res = await app.inject({
     method: 'POST',
@@ -110,7 +114,9 @@ describe('AI 服务：上游调用', () => {
     expect(body.messages.map((m) => m.role)).toEqual(['system', 'user'])
     expect(body.messages[1].content).toContain('什么是闭包？')
     // 密钥只出现在 Authorization 头
-    expect((capturedInit?.headers as Record<string, string>).Authorization).toBe('Bearer sk-test-secret-key')
+    expect((capturedInit?.headers as Record<string, string>).Authorization).toBe(
+      'Bearer sk-test-secret-key',
+    )
   })
 
   it('上游 5xx 映射为 AI_UPSTREAM_ERROR（502），cause 不丢', async () => {
@@ -159,7 +165,10 @@ describe('AI 服务：上游调用', () => {
   })
 
   it('上游错误文案不下发客户端（消息里没有上游细节）', async () => {
-    const svc = createAiService(baseOptions(), async () => new Response('secret-upstream-detail', { status: 502 }))
+    const svc = createAiService(
+      baseOptions(),
+      async () => new Response('secret-upstream-detail', { status: 502 }),
+    )
     try {
       await svc.review(req())
       expect.unreachable('应抛出错误')

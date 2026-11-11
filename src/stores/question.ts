@@ -20,11 +20,11 @@ export const useQuestionStore = defineStore('questions', () => {
   }
 
   const total = computed(() => items.value.length)
-  const unknownCount = computed(
-    () => items.value.filter((q) => q.mastery === 'unknown').length,
-  )
+  const unknownCount = computed(() => items.value.filter((q) => q.mastery === 'unknown').length)
   const dueCount = computed(
-    () => items.value.filter((q) => q.mastery !== 'mastered' && (q.nextReviewAt ?? '') <= todayISO()).length,
+    () =>
+      items.value.filter((q) => q.mastery !== 'mastered' && (q.nextReviewAt ?? '') <= todayISO())
+        .length,
   )
 
   /** 分类分布，给总览页画图用 */

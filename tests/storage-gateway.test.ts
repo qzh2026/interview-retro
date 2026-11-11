@@ -39,8 +39,12 @@ describe('wrapSyncAdapter：v1 同步适配器零改动可用', () => {
       id: 'test:sync',
       label: '测试同步适配器',
       read: () => raw,
-      write: (value) => { raw = value },
-      clear: () => { raw = null },
+      write: (value) => {
+        raw = value
+      },
+      clear: () => {
+        raw = null
+      },
     }
 
     const wrapped = wrapSyncAdapter(sync)
@@ -60,7 +64,9 @@ describe('wrapSyncAdapter：v1 同步适配器零改动可用', () => {
     const sync: StorageAdapter = {
       id: 'test:throws',
       label: '会抛错的适配器',
-      read: () => { throw new Error('boom') },
+      read: () => {
+        throw new Error('boom')
+      },
       write: () => {},
       clear: () => {},
     }
@@ -81,11 +87,20 @@ describe('getStorageGateway：适配器解析优先级', () => {
       id: 'test:custom-sync',
       label: '插件同步适配器',
       read: () => raw,
-      write: (value) => { raw = value },
-      clear: () => { raw = null },
+      write: (value) => {
+        raw = value
+      },
+      clear: () => {
+        raw = null
+      },
     }
     const plugin: Plugin = {
-      manifest: { id: 'test:custom-sync-plugin', name: '同步适配器插件', version: '1.0.0', contributes: ['storageAdapter'] },
+      manifest: {
+        id: 'test:custom-sync-plugin',
+        name: '同步适配器插件',
+        version: '1.0.0',
+        contributes: ['storageAdapter'],
+      },
       setup: (ctx) => ctx.useStorageAdapter(sync),
     }
     await installPlugin(plugin)
@@ -102,12 +117,27 @@ describe('getStorageGateway：适配器解析优先级', () => {
     const asyncAdapter: AsyncStorageAdapter = {
       id: 'test:async',
       label: '测试异步适配器',
-      async read() { await Promise.resolve(); return raw },
-      async write(value) { await Promise.resolve(); raw = value; writes += 1 },
-      async clear() { await Promise.resolve(); raw = null },
+      async read() {
+        await Promise.resolve()
+        return raw
+      },
+      async write(value) {
+        await Promise.resolve()
+        raw = value
+        writes += 1
+      },
+      async clear() {
+        await Promise.resolve()
+        raw = null
+      },
     }
     const plugin: Plugin = {
-      manifest: { id: 'test:async-plugin', name: '异步适配器插件', version: '1.0.0', contributes: ['asyncStorageAdapter'] },
+      manifest: {
+        id: 'test:async-plugin',
+        name: '异步适配器插件',
+        version: '1.0.0',
+        contributes: ['asyncStorageAdapter'],
+      },
       setup: (ctx) => ctx.useAsyncStorageAdapter(asyncAdapter),
     }
     await installPlugin(plugin)

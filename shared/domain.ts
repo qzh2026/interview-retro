@@ -16,28 +16,14 @@ export type ISODateTime = string // ISO 8601
 
 /** 面试轮次 */
 export type InterviewRound =
-  | 'written'
-  | 'tech1'
-  | 'tech2'
-  | 'tech3'
-  | 'cross'
-  | 'manager'
-  | 'hr'
-  | 'other'
+  'written' | 'tech1' | 'tech2' | 'tech3' | 'cross' | 'manager' | 'hr' | 'other'
 
 /** 本场结果 */
 export type InterviewResult = 'pending' | 'passed' | 'failed' | 'offer' | 'withdrawn'
 
 /** 题目分类 */
 export type QuestionCategory =
-  | 'tech'
-  | 'project'
-  | 'algorithm'
-  | 'design'
-  | 'behavior'
-  | 'hr'
-  | 'reverse'
-  | 'other'
+  'tech' | 'project' | 'algorithm' | 'design' | 'behavior' | 'hr' | 'reverse' | 'other'
 
 /** 掌握程度 */
 export type MasteryLevel = 'unknown' | 'learning' | 'mastered'
@@ -123,10 +109,5 @@ export interface BackupPayload {
 export type InterviewInput = Omit<Interview, 'id' | 'createdAt' | 'updatedAt'>
 export type QuestionInput = Omit<
   Question,
-  | 'id'
-  | 'createdAt'
-  | 'updatedAt'
-  | 'reviewCount'
-  | 'lastReviewedAt'
-  | 'nextReviewAt'
+  'id' | 'createdAt' | 'updatedAt' | 'reviewCount' | 'lastReviewedAt' | 'nextReviewAt'
 >

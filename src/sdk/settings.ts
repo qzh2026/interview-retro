@@ -7,9 +7,10 @@ import { PLUGIN_SETTINGS_KEY } from '@/constants'
 export function getPluginSettings<T>(pluginId: string): T | null {
   if (typeof window === 'undefined') return null
   try {
-    const all = JSON.parse(
-      window.localStorage.getItem(PLUGIN_SETTINGS_KEY) ?? '{}',
-    ) as Record<string, unknown>
+    const all = JSON.parse(window.localStorage.getItem(PLUGIN_SETTINGS_KEY) ?? '{}') as Record<
+      string,
+      unknown
+    >
     return (all[pluginId] as T) ?? null
   } catch {
     return null

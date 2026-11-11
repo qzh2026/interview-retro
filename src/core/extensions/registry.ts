@@ -104,17 +104,37 @@ export function listPlugins(): { manifest: PluginManifest; enabled: boolean }[] 
   }))
 }
 
-export function getExporters(): ExportFormat[] { return [...state.exporters] }
-export function getImporters(): ImportFormat[] { return [...state.importers] }
-export function getDashboardWidgets(): DashboardWidget[] { return [...state.widgets] }
-export function getSettingsPanels(): SettingsPanel[] { return [...state.panels] }
-export function getQuestionDetailTabs(): QuestionDetailTab[] { return [...state.tabs] }
-export function getMenuItems(): MenuItemExtension[] { return [...state.menuItems] }
+export function getExporters(): ExportFormat[] {
+  return [...state.exporters]
+}
+export function getImporters(): ImportFormat[] {
+  return [...state.importers]
+}
+export function getDashboardWidgets(): DashboardWidget[] {
+  return [...state.widgets]
+}
+export function getSettingsPanels(): SettingsPanel[] {
+  return [...state.panels]
+}
+export function getQuestionDetailTabs(): QuestionDetailTab[] {
+  return [...state.tabs]
+}
+export function getMenuItems(): MenuItemExtension[] {
+  return [...state.menuItems]
+}
 
-export function getStorageAdapter(): StorageAdapter { return state.storageAdapter }
-export function getAsyncStorageAdapter(): AsyncStorageAdapter | null { return state.asyncStorageAdapter }
-export function getAiAdapter(): AiAdapter { return state.aiAdapter }
-export function getReviewStrategy(): ReviewStrategy { return state.reviewStrategy }
+export function getStorageAdapter(): StorageAdapter {
+  return state.storageAdapter
+}
+export function getAsyncStorageAdapter(): AsyncStorageAdapter | null {
+  return state.asyncStorageAdapter
+}
+export function getAiAdapter(): AiAdapter {
+  return state.aiAdapter
+}
+export function getReviewStrategy(): ReviewStrategy {
+  return state.reviewStrategy
+}
 
 export function getActiveAdapters() {
   return {
