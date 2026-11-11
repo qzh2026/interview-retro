@@ -12,15 +12,17 @@ import type { HealthRepository } from '../../server/modules/health/repository'
 import type { HealthService } from '../../server/modules/health/service'
 import { createSyncRepository } from '../../server/modules/sync/repository'
 import { createSyncService } from '../../server/modules/sync/service'
+import { createAiService, type AiService } from '../../server/modules/ai/service'
 
 /**
  * 测试应用工厂：真实内存库 + 真实迁移 + 真实 auth/sync 服务，
- * 只允许覆盖 health 层（部分用例需要注入 stub 行为）。
+ * 只允许覆盖 health / ai 层（部分用例需要注入 stub 行为）。
  */
 export interface MakeTestAppOptions {
   env?: Record<string, string>
   healthRepo?: HealthRepository
   healthService?: HealthService
+  aiService?: AiService
 }
 
 export interface TestApp {
@@ -53,8 +55,17 @@ export async function makeTestApp(options: MakeTestAppOptions = {}): Promise<Tes
   const healthService =
     options.healthService ??
     createHealthService(options.healthRepo ?? createHealthRepository(database.client), 'test-version')
+  // 默认 AI 服务未配置（无密钥）：调用会稳定返回 AI_NOT_CONFIGURED，测试可注入 stub 覆盖
+  const aiService =
+    options.aiService ??
+    createAiService({
+      apiKey: config.aiApiKey,
+      baseUrl: config.aiBaseUrl,
+      model: config.aiModel,
+      timeoutMs: config.aiTimeoutMs,
+    })
 
-  const app = await buildApp(config, { healthService, authService, syncService, tokens })
+  const app = await buildApp(config, { healthService, authService, syncService, aiService, tokens })
   return { app, database, config }
 }
 

@@ -1,5 +1,6 @@
 import type { Plugin } from '@/sdk'
 import cloudSync from './cloud-sync'
+import cloudAi from './cloud-ai'
 import markdownExporter from './markdown-exporter'
 import textImporter from './text-importer'
 import tagCloud from './tag-cloud'
@@ -17,6 +18,7 @@ import reviewLog from './review-log'
  */
 export const plugins: Plugin[] = [
   cloudSync,
+  cloudAi,
   markdownExporter,
   textImporter,
   tagCloud,

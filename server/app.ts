@@ -7,6 +7,8 @@ import { registerErrorHandler } from './errors/handler'
 import { registerCors } from './http/cors'
 import { registerHooks } from './http/hooks'
 import { createLoggerOptions } from './http/logger'
+import { registerAiRoutes } from './modules/ai/controller'
+import type { AiService } from './modules/ai/service'
 import { registerAuthRoutes } from './modules/auth/controller'
 import type { TokenVerifier } from './modules/auth/tokens'
 import type { AuthService } from './modules/auth/service'
@@ -20,6 +22,7 @@ export interface AppDeps {
   healthService: HealthService
   authService: AuthService
   syncService: SyncService
+  aiService: AiService
   tokens: TokenVerifier
 }
 
@@ -44,6 +47,7 @@ export async function buildApp(config: AppConfig, deps: AppDeps): Promise<Fastif
   registerHealthRoutes(app, deps.healthService)
   registerAuthRoutes(app, deps.authService, deps.tokens, config)
   registerSyncRoutes(app, deps.syncService, deps.tokens)
+  registerAiRoutes(app, deps.aiService, deps.tokens, config)
 
   await app.ready()
   return app

@@ -68,6 +68,28 @@ describe('loadConfig', () => {
   it('JWT_SECRET 太短快速失败', () => {
     expect(() => loadConfig({ JWT_SECRET: 'short' })).toThrow(ConfigurationError)
   })
+
+  it('AI 配置默认未启用：无密钥无模型，baseUrl 有默认值', () => {
+    const config = loadConfig({})
+    expect(config.aiApiKey).toBeUndefined()
+    expect(config.aiModel).toBeUndefined()
+    expect(config.aiBaseUrl).toBe('https://api.openai.com/v1')
+    expect(config.aiTimeoutMs).toBe(30000)
+    expect(config.aiRateLimitMax).toBe(10)
+  })
+
+  it('AI 密钥/模型空串视同未配置，baseUrl 去掉末尾斜杠', () => {
+    const config = loadConfig({ AI_API_KEY: '  ', AI_MODEL: '', AI_BASE_URL: 'https://ai.example.com/v1/' })
+    expect(config.aiApiKey).toBeUndefined()
+    expect(config.aiModel).toBeUndefined()
+    expect(config.aiBaseUrl).toBe('https://ai.example.com/v1')
+  })
+
+  it('AI 密钥只进 config，与模型同时配置才启用', () => {
+    const config = loadConfig({ AI_API_KEY: 'sk-test', AI_MODEL: 'deepseek-chat' })
+    expect(config.aiApiKey).toBe('sk-test')
+    expect(config.aiModel).toBe('deepseek-chat')
+  })
 })
 
 describe('validate 边界校验', () => {

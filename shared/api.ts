@@ -17,6 +17,12 @@ export const ERROR_CODES = {
   RATE_LIMITED: 'RATE_LIMITED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   DATABASE_ERROR: 'DATABASE_ERROR',
+  /** AI 代理：服务端未配置 AI_API_KEY / AI_MODEL，代理端点拒绝服务 */
+  AI_NOT_CONFIGURED: 'AI_NOT_CONFIGURED',
+  /** AI 代理：上游模型服务出错（非 2xx / 响应不可解析） */
+  AI_UPSTREAM_ERROR: 'AI_UPSTREAM_ERROR',
+  /** AI 代理：上游模型服务响应超时 */
+  AI_TIMEOUT: 'AI_TIMEOUT',
   INTERNAL: 'INTERNAL',
 } as const
 
@@ -133,4 +139,29 @@ export interface SyncChangeRecord extends SyncChangeInput {
 export interface SyncPullResponse {
   cursor: number
   changes: SyncChangeRecord[]
+}
+
+/* ============================================================
+ * AI 复盘代理（Stage 5）
+ *
+ * 结构与 src/sdk/types.ts 的 AiReviewRequest / AiReviewResponse
+ * 保持一致（SDK 独立不依赖 shared，两边各自声明、结构兼容）。
+ * 密钥只存在于服务端环境变量，前端只拿这两个 DTO 走 HTTP。
+ * ========================================================== */
+
+export interface AiReviewRequest {
+  /** 题目内容 */
+  content: string
+  /** 我当时的回答 */
+  myAnswer: string
+  category: string
+  tags?: string[]
+}
+
+export interface AiReviewResponse {
+  /** 参考的正确思路 / 理想回答 */
+  idealAnswer: string
+  suggestedTags: string[]
+  /** 改进建议 */
+  suggestions: string[]
 }

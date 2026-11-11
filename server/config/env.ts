@@ -30,6 +30,17 @@ const EnvSchema = z.object({
   SYNC_MAX_CHANGES_PER_PUSH: z.coerce.number().int().min(1).max(1000).default(200),
   /** 单次 pull 返回的最大变更条数 */
   SYNC_PULL_LIMIT: z.coerce.number().int().min(1).max(2000).default(500),
+  /* ===== AI 代理（Stage 5）：全部可选，未配置时服务照常启动、AI 端点返回 AI_NOT_CONFIGURED ===== */
+  /** 上游模型 API 密钥：只存服务端环境变量，禁止进入任何 VITE_* / 前端产物 */
+  AI_API_KEY: z.string().optional(),
+  /** OpenAI 兼容接口地址（DeepSeek / Kimi / Qwen / Moonshot / OpenAI 通用） */
+  AI_BASE_URL: z.string().default('https://api.openai.com/v1'),
+  /** 模型名（如 deepseek-chat / kimi-k2 / qwen-plus）；与 AI_API_KEY 同时存在才视为已启用 */
+  AI_MODEL: z.string().optional(),
+  /** 上游调用超时（毫秒） */
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
+  /** /api/ai/review 每分钟每用户的请求上限 */
+  AI_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10000).default(10),
 })
 
 export interface AppConfig {
@@ -49,6 +60,14 @@ export interface AppConfig {
   authRateLimitMax: number
   syncMaxChangesPerPush: number
   syncPullLimit: number
+  /** AI 代理：密钥只存在这里，绝不下发前端。undefined = 未启用 */
+  aiApiKey: string | undefined
+  /** OpenAI 兼容接口地址 */
+  aiBaseUrl: string
+  /** 模型名；与 aiApiKey 同时存在才视为已启用 */
+  aiModel: string | undefined
+  aiTimeoutMs: number
+  aiRateLimitMax: number
 }
 
 /**
@@ -107,5 +126,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     authRateLimitMax: raw.AUTH_RATE_LIMIT_MAX,
     syncMaxChangesPerPush: raw.SYNC_MAX_CHANGES_PER_PUSH,
     syncPullLimit: raw.SYNC_PULL_LIMIT,
+    // 空串视同未配置（.env 占位值常见），避免空密钥发往上游
+    aiApiKey: raw.AI_API_KEY?.trim() || undefined,
+    aiBaseUrl: raw.AI_BASE_URL.replace(/\/$/, ''),
+    aiModel: raw.AI_MODEL?.trim() || undefined,
+    aiTimeoutMs: raw.AI_TIMEOUT_MS,
+    aiRateLimitMax: raw.AI_RATE_LIMIT_MAX,
   }
 }

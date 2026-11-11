@@ -3,6 +3,7 @@ import { loadConfig, loadEnvFileIfPresent } from './config/env'
 import { createDatabase } from './db/client'
 import { runMigrations } from './db/migrate'
 import { createShutdown } from './lifecycle'
+import { createAiService } from './modules/ai/service'
 import { createAuthRepository } from './modules/auth/repository'
 import { createAuthService } from './modules/auth/service'
 import { createTokenVerifier } from './modules/auth/tokens'
@@ -36,7 +37,13 @@ async function main(): Promise<void> {
       maxChangesPerPush: config.syncMaxChangesPerPush,
       pullLimit: config.syncPullLimit,
     })
-    const app = await buildApp(config, { healthService, authService, syncService, tokens })
+    const aiService = createAiService({
+      apiKey: config.aiApiKey,
+      baseUrl: config.aiBaseUrl,
+      model: config.aiModel,
+      timeoutMs: config.aiTimeoutMs,
+    })
+    const app = await buildApp(config, { healthService, authService, syncService, aiService, tokens })
 
     const shutdown = createShutdown({
       app,

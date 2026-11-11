@@ -22,7 +22,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (error instanceof AppError) {
       // 4xx 属于客户端行为，warn 即可；5xx 才记 error
       const log = error.statusCode >= 500 ? request.log.error : request.log.warn
-      log.call(request.log, { code: error.code, statusCode: error.statusCode }, error.message)
+      // cause 只进服务端日志（如上游 HTTP 状态），客户端永远看不到
+      const fields: Record<string, unknown> = { code: error.code, statusCode: error.statusCode }
+      if (error.cause !== undefined) fields.err = error.cause
+      log.call(request.log, fields, error.message)
       void reply
         .code(error.statusCode)
         .send(body(error.code, error.message, requestId, error.details))
