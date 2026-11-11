@@ -11,7 +11,7 @@
 - **间隔重复复习**：默认阶梯 1/3/7/15/30/60 天，记住了拉长间隔，没记住打回第一轮
 - **检索与统计**：全文搜索、分类 / 掌握度筛选、低分题优先、知识点分布
 - **数据安全**：纯本地存储，JSON 全量导入导出（含插件配置）
-- **插件系统**：11 个扩展点，类型安全，源码内注册，零运行时风险
+- **插件系统**：12 个扩展点，类型安全，源码内注册，零运行时风险
 
 ## 快速开始
 
@@ -56,6 +56,8 @@ MSYS_NO_PATHCONV=1 VITE_BASE=/<repo>/ npm run build
 ## 项目结构
 
 ```
+shared/
+└── domain.ts          领域模型单一来源（前后端共享，src/types 从这里 re-export）
 src/
 ├── sdk/               对外稳定契约（第三方插件只依赖这里）
 │   ├── types.ts          Plugin / 事件表 / 适配器 / UI 插槽等全部公共类型
@@ -71,9 +73,9 @@ src/
 ├── plugins/           插件注册入口 + 内置示例
 │   ├── index.ts         ★ 使用者扩展时唯一需要改的文件
 │   └── components/      示例插件的 Vue 组件
-├── types/             领域模型
-├── services/          storage / repository / backup / ai
-├── stores/            Pinia 状态
+├── types/             领域类型兼容层（保持 @/types 路径不变）
+├── services/          storage / repository / backup / ai / storage-gateway / storage-queue
+├── stores/            Pinia 状态（含启动期预加载 initializeStores）
 ├── views/             页面
 └── components/        通用组件与布局
 ```
@@ -92,7 +94,8 @@ src/
 | 扩展点 | 注册方法 | 作用 | 类型 |
 |---|---|---|---|
 | 事件订阅 | `events.on(...)` | 监听生命周期、插件间通信 | 加法 |
-| 存储适配器 | `useStorageAdapter` | 替换底层持久化 | 替换 |
+| 存储适配器 | `useStorageAdapter` | 替换底层持久化（同步契约，保持不变） | 替换 |
+| 异步存储适配器 | `useAsyncStorageAdapter` | IndexedDB / 远端同步；注册后优先于同步适配器 | 替换 |
 | AI 适配器 | `useAiAdapter` | 接入大模型复盘 | 替换 |
 | 复习策略 | `useReviewStrategy` | 替换整个间隔算法 | 替换 |
 | 导出格式 | `registerExporter` | 设置页新增导出按钮 | 加法 |
@@ -217,7 +220,24 @@ setup({ useStorageAdapter }) {
 }
 ```
 
-> ⚠️ 当前 `StorageAdapter` 是**同步契约**。IndexedDB / 远端同步是异步的，需要把 repository 与 stores 一起改成 async，属于 v2 的破坏性变更。同步能做的事包括：加密 / 压缩、分片存储、多工作区 key、写入前钩子。
+> 同步适配器**零改动仍可用**：核心会通过 `storage-gateway` 自动把它包装成 Promise。
+> 同步适配器适合做加密 / 压缩、分片存储、多工作区 key、写入前钩子。
+> 需要 IndexedDB / 远端同步时改注册 `AsyncStorageAdapter`（`read / write / clear` 返回 `Promise`），
+> 网关会优先使用它；两类适配器同时注册时以异步为准。
+
+```ts
+setup({ useAsyncStorageAdapter }) {
+  useAsyncStorageAdapter({
+    id: 'me:cloud', label: '云同步',
+    async read() { /* 返回原始字符串或 null */ return await remote.get() },
+    async write(raw) { await remote.set(raw) },
+    async clear() { await remote.clear() },
+  })
+}
+```
+
+> 数据层已统一为 async 链路，复合「读→改→写」由 `withStorageLock` 串行化避免并发覆盖；
+> 适配器的 `read / write` 里不要再回调核心仓储，否则会与锁互相等待。适配器抛错由核心统一吞掉并上报 `storage-health`，不会冒泡到页面。
 
 **替换 AI 适配器**（密钥必须放后端代理，禁止写进 `import.meta.env`）：
 
@@ -280,7 +300,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 - **id 带命名空间**：`namespace:name`，注册表对重复 id 会告警并忽略。
 - **后注册覆盖**：替换型扩展点的生效者由 `plugins` 数组顺序决定，设置页会显示当前是谁。
 - **开关刷新生效**：启用 / 禁用状态持久化在独立 key，不做热卸载（避免动态路由残留）。
-- **启动顺序**：`bootstrapExtensions` 在 `app.use(router)` 之前被 `await`，会等待所有插件（**含异步 `setup`**）注册完成，再执行 `addRoute` 并广播 `app:ready`，保证插件路由在 Vue Router 首次导航前就绪（否则刷新插件页面会被兜底路由重定向）。`app:ready` 因此在应用挂载前触发，插件不要在此时操作 DOM。
+- **启动顺序**：`bootstrapExtensions`（等所有插件含异步 `setup` 注册完 → `addRoute` → 广播 `app:ready`）→ `initializeStores()` 预加载首屏数据 → `app.use(router)` → `mount`。存储层是 async 的，store 的 setup 不再同步读盘；预加载必须在首次导航前完成，否则首屏会先闪一下空列表。`app:ready` 在应用挂载前触发，插件不要在此时操作 DOM。
 - **单个插件异常被隔离**：事件处理器、`setup`、插槽组件渲染三层都有兜底，单个插件故障不影响其他功能。
 - **SDK 稳定性**：`src/sdk/` 中已导出的类型签名保持不变即视为兼容；新增扩展点或可选字段是非破坏性变更。请不要直接 import `src/core/` 内部模块。
 
@@ -316,7 +336,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 ## 路线图
 
 - P1：Markdown 渲染与代码高亮、面经文本解析增强、按公司 / 岗位统计
-- P2：异步存储适配器（IndexedDB）+ 全文检索（需改造 repository / stores 为 async）
+- P2：~~异步存储适配器~~ **已完成**（`AsyncStorageAdapter` + 统一异步网关，repository / stores 已 async 化）；全文检索待做
 - P3：官方 AI 复盘插件（后端代理保管密钥）
 - P4：多端同步（这一步才需要后端与账号）
 

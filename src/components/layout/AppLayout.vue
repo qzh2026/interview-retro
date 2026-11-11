@@ -74,7 +74,8 @@ import {
   type StorageIssue,
 } from '@/services/storage-health'
 
-// 先订阅，再创建 store：store 初始化时的 loadState 就可能触发告警
+// 先订阅再创建 store：启动期预加载（initializeStores）可能已经产生告警。
+// subscribeStorageIssue 订阅时会立即回放当前状态，所以晚订阅也不会漏掉启动期告警。
 const storageIssue = ref<StorageIssue | null>(null)
 const stopWatching = subscribeStorageIssue((issue) => {
   storageIssue.value = issue

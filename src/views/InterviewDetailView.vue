@@ -91,13 +91,13 @@ watch(
   { immediate: true },
 )
 
-function onResultChange(value: InterviewResult): void {
-  interviewStore.update(id.value, { result: value })
+async function onResultChange(value: InterviewResult): Promise<void> {
+  await interviewStore.update(id.value, { result: value })
   ElMessage.success('结果已更新')
 }
 
-function onAddQuestion(payload: QuestionInput): void {
-  questionStore.create(payload)
+async function onAddQuestion(payload: QuestionInput): Promise<void> {
+  await questionStore.create(payload)
   dialogVisible.value = false
   ElMessage.success('题目已保存，明天进入第一轮复习')
 }

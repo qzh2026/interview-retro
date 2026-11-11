@@ -14,10 +14,10 @@ const repo = createRepository('questions')
 export const useQuestionStore = defineStore('questions', () => {
   const items = ref<Question[]>([])
 
-  function refresh(): void {
-    items.value = repo.all()
+  /** 初始加载由 main.ts 的 initializeStores() 在 mount 之前 await */
+  async function refresh(): Promise<void> {
+    items.value = await repo.all()
   }
-  refresh()
 
   const total = computed(() => items.value.length)
   const unknownCount = computed(
@@ -55,26 +55,26 @@ export const useQuestionStore = defineStore('questions', () => {
     return pickDueQuestions(items.value, limit)
   }
 
-  function create(input: QuestionInput): Question {
+  async function create(input: QuestionInput): Promise<Question> {
     const ts = nowISO()
     const item: Question = {
       ...input,
-      ...initialReviewPlan(loadState().settings.reviewIntervals),
+      ...initialReviewPlan((await loadState()).settings.reviewIntervals),
       id: newId(),
       createdAt: ts,
       updatedAt: ts,
     }
-    repo.insert(item)
-    refresh()
+    await repo.insert(item)
+    await refresh()
     events.emit('question:created', item)
     return item
   }
 
   /** 批量导入用：只读一次设置、一次写盘，逐条派发事件 */
-  function createMany(inputs: QuestionInput[]): Question[] {
+  async function createMany(inputs: QuestionInput[]): Promise<Question[]> {
     if (inputs.length === 0) return []
     const ts = nowISO()
-    const plan = initialReviewPlan(loadState().settings.reviewIntervals)
+    const plan = initialReviewPlan((await loadState()).settings.reviewIntervals)
     const created: Question[] = inputs.map((input) => ({
       ...input,
       ...plan,
@@ -82,29 +82,29 @@ export const useQuestionStore = defineStore('questions', () => {
       createdAt: ts,
       updatedAt: ts,
     }))
-    repo.insertMany(created)
-    refresh()
+    await repo.insertMany(created)
+    await refresh()
     created.forEach((item) => events.emit('question:created', item))
     return created
   }
 
-  function update(id: string, patch: Partial<Question>): void {
-    const next = repo.update(id, patch)
-    refresh()
+  async function update(id: string, patch: Partial<Question>): Promise<void> {
+    const next = await repo.update(id, patch)
+    await refresh()
     if (next) events.emit('question:updated', next)
   }
 
-  function remove(id: string): void {
-    repo.remove(id)
-    refresh()
+  async function remove(id: string): Promise<void> {
+    await repo.remove(id)
+    await refresh()
     events.emit('question:deleted', { id })
   }
 
   /** 复习打卡：间隔与掌握判定都委托给可替换的 ReviewStrategy */
-  function markReviewed(id: string, remembered: boolean): void {
+  async function markReviewed(id: string, remembered: boolean): Promise<void> {
     const question = getById(id)
     if (!question) return
-    const settings = loadState().settings
+    const settings = (await loadState()).settings
     const plan = getReviewStrategy().computeNext(question, remembered, settings)
 
     const patch: Partial<Question> = { ...plan }
@@ -113,8 +113,8 @@ export const useQuestionStore = defineStore('questions', () => {
       patch.mastery = 'mastered'
     }
 
-    const next = repo.update(id, patch)
-    refresh()
+    const next = await repo.update(id, patch)
+    await refresh()
     events.emit('review:completed', {
       questionId: id,
       remembered,

@@ -8,6 +8,7 @@ import { makeInterview, makeQuestion } from './helpers'
 /**
  * 纯 Node 环境：localStorageAdapter 在 window 不存在时走 memoryFallback，
  * 因此这里既是单元测试，也是「无浏览器时的降级路径」回归测试。
+ * 存储层已统一为 async 链路，所有用例都要 await。
  */
 beforeEach(() => {
   localStorageAdapter.clear()
@@ -19,8 +20,8 @@ beforeEach(() => {
 })
 
 describe('loadState / saveState', () => {
-  it('空存储返回带默认设置的空状态', () => {
-    const state = loadState()
+  it('空存储返回带默认设置的空状态', async () => {
+    const state = await loadState()
     expect(state.schemaVersion).toBe(SCHEMA_VERSION)
     expect(state.interviews).toEqual([])
     expect(state.questions).toEqual([])
@@ -28,12 +29,12 @@ describe('loadState / saveState', () => {
     expect(state.settings.dailyReviewLimit).toBe(DEFAULT_SETTINGS.dailyReviewLimit)
   })
 
-  it('往返读写一致，且 saveState 强制把 schemaVersion 写回当前版本', () => {
-    const state = loadState()
+  it('往返读写一致，且 saveState 强制把 schemaVersion 写回当前版本', async () => {
+    const state = await loadState()
     state.interviews.push(makeInterview({ company: '字节' }))
-    saveState({ ...state, schemaVersion: 999 })
+    await saveState({ ...state, schemaVersion: 999 })
 
-    const reloaded = loadState()
+    const reloaded = await loadState()
     expect(reloaded.schemaVersion).toBe(SCHEMA_VERSION)
     expect(reloaded.interviews).toHaveLength(1)
     expect(reloaded.interviews[0].company).toBe('字节')
@@ -41,14 +42,14 @@ describe('loadState / saveState', () => {
 })
 
 describe('migrate 字段兜底与脏数据自愈', () => {
-  it('为残缺记录补齐默认值与时间戳', () => {
+  it('为残缺记录补齐默认值与时间戳', async () => {
     localStorageAdapter.write(JSON.stringify({
       schemaVersion: 0,
       interviews: [{ company: 'A' }],
       questions: [{ content: 'Q1' }],
     }))
 
-    const state = loadState()
+    const state = await loadState()
     const interview = state.interviews[0]
     expect(interview.id).toBeTruthy()
     expect(interview.round).toBe('other')
@@ -71,13 +72,13 @@ describe('migrate 字段兜底与脏数据自愈', () => {
     expect(question.metadata).toEqual({})
   })
 
-  it('过滤 null / 非对象元素，并原样透传未知字段', () => {
+  it('过滤 null / 非对象元素，并原样透传未知字段', async () => {
     localStorageAdapter.write(JSON.stringify({
       interviews: [null, 'bad', 42, { id: 'keep', company: 'A', ownerId: 'u1', custom: 1 }],
       questions: [null, { id: 'q1' }],
     }))
 
-    const state = loadState()
+    const state = await loadState()
     expect(state.interviews).toHaveLength(1)
     expect(state.questions).toHaveLength(1)
     const kept = state.interviews[0] as unknown as Record<string, unknown>
@@ -87,22 +88,22 @@ describe('migrate 字段兜底与脏数据自愈', () => {
     expect(kept.custom).toBe(1)
   })
 
-  it('settings 非法值回退到默认阶梯与上限', () => {
+  it('settings 非法值回退到默认阶梯与上限', async () => {
     localStorageAdapter.write(JSON.stringify({
       settings: { reviewIntervals: [0, -1, 'x', 5, null], dailyReviewLimit: 0 },
     }))
 
-    const settings = loadState().settings
+    const settings = (await loadState()).settings
     expect(settings.reviewIntervals).toEqual([5])
     expect(settings.dailyReviewLimit).toBe(DEFAULT_SETTINGS.dailyReviewLimit)
   })
 
-  it('JSON 损坏时不抛错、返回空状态，并上报带原始串的 corrupt 告警', () => {
+  it('JSON 损坏时不抛错、返回空状态，并上报带原始串的 corrupt 告警', async () => {
     const broken = '{ not json'
     localStorageAdapter.write(broken)
 
-    expect(() => loadState()).not.toThrow()
-    expect(loadState().interviews).toEqual([])
+    const state = await loadState()
+    expect(state.interviews).toEqual([])
     const issue = getStorageIssue()
     expect(issue?.kind).toBe('corrupt')
     expect(issue?.raw).toBe(broken)
@@ -110,25 +111,26 @@ describe('migrate 字段兜底与脏数据自愈', () => {
 })
 
 describe('整包覆盖与清空', () => {
-  it('replaceState 覆盖旧数据，resetState 清空', () => {
-    replaceState({
+  it('replaceState 覆盖旧数据，resetState 清空', async () => {
+    await replaceState({
       schemaVersion: SCHEMA_VERSION,
       interviews: [makeInterview({ id: 'old' })],
       questions: [makeQuestion({ id: 'old-q' })],
       settings: { ...DEFAULT_SETTINGS },
     })
-    expect(loadState().interviews[0].id).toBe('old')
+    expect((await loadState()).interviews[0].id).toBe('old')
 
-    replaceState({
+    await replaceState({
       schemaVersion: SCHEMA_VERSION,
       interviews: [makeInterview({ id: 'new' })],
       questions: [],
       settings: { ...DEFAULT_SETTINGS },
     })
-    expect(loadState().interviews.map((i) => i.id)).toEqual(['new'])
+    expect((await loadState()).interviews.map((i) => i.id)).toEqual(['new'])
 
-    resetState()
-    expect(loadState().interviews).toEqual([])
-    expect(loadState().questions).toEqual([])
+    await resetState()
+    const state = await loadState()
+    expect(state.interviews).toEqual([])
+    expect(state.questions).toEqual([])
   })
 })

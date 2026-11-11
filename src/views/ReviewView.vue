@@ -84,9 +84,9 @@ function resetQueue(): void {
 
 onMounted(resetQueue)
 
-function answer(remembered: boolean): void {
+async function answer(remembered: boolean): Promise<void> {
   if (!current.value) return
-  questionStore.markReviewed(current.value.id, remembered)
+  await questionStore.markReviewed(current.value.id, remembered)
   index.value += 1
   revealed.value = false
 }

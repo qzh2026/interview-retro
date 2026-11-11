@@ -90,8 +90,8 @@ function goDetail(row: Question): void {
   router.push(`/questions/${row.id}`)
 }
 
-function onAddQuestion(payload: QuestionInput): void {
-  questionStore.create(payload)
+async function onAddQuestion(payload: QuestionInput): Promise<void> {
+  await questionStore.create(payload)
   dialogVisible.value = false
   ElMessage.success('题目已保存')
 }

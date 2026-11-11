@@ -30,7 +30,7 @@
       <h2 class="section-title">备份与恢复</h2>
       <el-alert type="warning" :closable="false" show-icon class="mb-16" title="清除浏览器数据 / 换电脑 / 换浏览器都会导致数据丢失，建议每周导出一次" />
       <div class="backup-actions">
-        <el-button type="primary" @click="settingsStore.exportToFile()">导出 JSON 备份</el-button>
+        <el-button type="primary" @click="onExport">导出 JSON 备份</el-button>
         <el-button @click="fileInput?.click()">从 JSON 导入</el-button>
         <el-button type="danger" plain @click="onClear">清空全部数据</el-button>
         <input ref="fileInput" type="file" accept=".json,application/json" hidden @change="onFileChange" />
@@ -71,6 +71,7 @@
 
       <div class="adapter-line mb-16">
         <span>存储：<strong>{{ adapters.storage.label }}</strong></span>
+        <span v-if="adapters.asyncStorage">云同步：<strong>{{ adapters.asyncStorage.label }}</strong>（优先）</span>
         <span>AI：<strong>{{ adapters.ai.label }}</strong></span>
         <span>复习策略：<strong>{{ adapters.review.label }}</strong></span>
       </div>
@@ -141,6 +142,7 @@ import type { ExportContext, ExtensionPoint } from '@/sdk'
 const POINT_LABELS: Record<ExtensionPoint, string> = {
   event: '事件订阅',
   storageAdapter: '存储适配器',
+  asyncStorageAdapter: '异步存储适配器',
   aiAdapter: 'AI 适配器',
   reviewStrategy: '复习策略',
   importer: '导入格式',
@@ -174,7 +176,7 @@ const adapters = getActiveAdapters()
 const acceptAttr = computed(() => importers.map((item) => item.accept).join(','))
 let activeImporterId = ''
 
-function onSaveSettings(): void {
+async function onSaveSettings(): Promise<void> {
   const list = intervalText.value
     .split(/[,，\s]+/)
     .map((item) => Number(item))
@@ -183,8 +185,12 @@ function onSaveSettings(): void {
     ElMessage.warning('请填写至少一个大于 0 的天数')
     return
   }
-  settingsStore.update({ reviewIntervals: list, dailyReviewLimit: dailyLimit.value })
+  await settingsStore.update({ reviewIntervals: list, dailyReviewLimit: dailyLimit.value })
   ElMessage.success('复习策略已保存')
+}
+
+async function onExport(): Promise<void> {
+  await settingsStore.exportToFile()
 }
 
 async function onFileChange(event: Event): Promise<void> {
@@ -196,9 +202,8 @@ async function onFileChange(event: Event): Promise<void> {
       type: 'warning',
       confirmButtonText: '确认导入',
     })
-    settingsStore.importFromText(await file.text())
-    interviewStore.refresh()
-    questionStore.refresh()
+    await settingsStore.importFromText(await file.text())
+    await Promise.all([interviewStore.refresh(), questionStore.refresh()])
     intervalText.value = settingsStore.settings.reviewIntervals.join(', ')
     dailyLimit.value = settingsStore.settings.dailyReviewLimit
     ElMessage.success('导入成功')
@@ -220,9 +225,8 @@ async function onClear(): Promise<void> {
   } catch {
     return
   }
-  settingsStore.clearAll()
-  interviewStore.refresh()
-  questionStore.refresh()
+  await settingsStore.clearAll()
+  await Promise.all([interviewStore.refresh(), questionStore.refresh()])
   ElMessage.success('已清空')
 }
 
@@ -234,10 +238,10 @@ function onTogglePlugin(id: string, value: unknown): void {
   ElMessage.info('已保存，刷新页面后生效')
 }
 
-function runExport(formatId: string): void {
+async function runExport(formatId: string): Promise<void> {
   const format = exporters.find((item) => item.id === formatId)
   if (!format) return
-  const state = loadState()
+  const state = await loadState()
   const ctx: ExportContext = {
     interviews: state.interviews,
     questions: state.questions,
@@ -267,9 +271,9 @@ async function onImportFileChange(event: Event): Promise<void> {
   try {
     const data = format.parse(await file.text(), { settings: settingsStore.settings })
     // 批量写入：一次读、一次写，不要逐条 create（会造成 N 次全量序列化）
-    const interviews = interviewStore.createMany(data.interviews ?? [])
-    const questions = questionStore.createMany(data.questions ?? [])
-    settingsStore.refreshUsage()
+    const interviews = await interviewStore.createMany(data.interviews ?? [])
+    const questions = await questionStore.createMany(data.questions ?? [])
+    await settingsStore.refreshUsage()
     ElMessage.success(`导入完成：${interviews.length} 场面试，${questions.length} 道题`)
   } catch (err) {
     ElMessage.error(`导入失败：${(err as Error).message}`)

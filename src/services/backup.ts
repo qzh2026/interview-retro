@@ -5,8 +5,8 @@ import { readPluginSettings, writePluginSettings } from '@/core/extensions/regis
 import { loadState, replaceState, resetState } from './storage'
 
 /** 生成为可下载的 JSON 快照（含插件配置） */
-export function buildBackup(): BackupPayload {
-  const state = loadState()
+export async function buildBackup(): Promise<BackupPayload> {
+  const state = await loadState()
   return {
     app: 'interview-retro',
     schemaVersion: SCHEMA_VERSION,
@@ -18,7 +18,7 @@ export function buildBackup(): BackupPayload {
   }
 }
 
-/** 通用下载，也供插件注册的 ExportFormat 复用 */
+/** 通用下载，也供插件注册的 ExportFormat 复用；纯浏览器行为，保持同步 */
 export function downloadTextFile(filename: string, content: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -30,10 +30,10 @@ export function downloadTextFile(filename: string, content: string, mimeType: st
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-export function downloadBackup(): void {
+export async function downloadBackup(): Promise<void> {
   downloadTextFile(
     `面经复盘-${todayISO()}.json`,
-    JSON.stringify(buildBackup(), null, 2),
+    JSON.stringify(await buildBackup(), null, 2),
     'application/json;charset=utf-8',
   )
 }
@@ -44,7 +44,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * 导入前先做结构校验，避免把脏数据写进本地存储。
- * 字段级的补齐由 storage.migrate() 完成；这里负责「能不能安全导入」的判断。
+ * 纯校验、无 IO，保持同步：字段级的补齐由 storage.migrate() 完成；
  * 校验失败一律抛错，调用方不会写任何数据，原有内容保持不变。
  */
 export function parseBackup(text: string): PersistedState {
@@ -78,8 +78,8 @@ export function parseBackup(text: string): PersistedState {
   }
 }
 
-export function applyBackup(text: string): void {
-  replaceState(parseBackup(text))
+export async function applyBackup(text: string): Promise<void> {
+  await replaceState(parseBackup(text))
   // 老版本备份没有 pluginSettings，忽略即可
   try {
     const raw = JSON.parse(text) as Partial<BackupPayload>
@@ -91,13 +91,13 @@ export function applyBackup(text: string): void {
   }
 }
 
-export function clearAllData(): void {
-  resetState()
+export async function clearAllData(): Promise<void> {
+  await resetState()
   writePluginSettings({})
 }
 
-export function storageEstimate(): { count: number; kb: number } {
-  const state = loadState()
+export async function storageEstimate(): Promise<{ count: number; kb: number }> {
+  const state = await loadState()
   const bytes = new Blob([JSON.stringify(state)]).size
   return {
     count: state.interviews.length + state.questions.length,

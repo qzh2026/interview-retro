@@ -111,12 +111,12 @@ function openCreate(): void {
   dialogVisible.value = true
 }
 
-function onCreate(): void {
+async function onCreate(): Promise<void> {
   if (!form.company.trim() || !form.position.trim()) {
     ElMessage.warning('公司和岗位不能为空')
     return
   }
-  const created = interviewStore.create({ ...form, company: form.company.trim(), position: form.position.trim() })
+  const created = await interviewStore.create({ ...form, company: form.company.trim(), position: form.position.trim() })
   dialogVisible.value = false
   ElMessage.success('已创建，接着把被问到的题录进来吧')
   router.push(`/interviews/${created.id}`)
@@ -126,8 +126,8 @@ function goDetail(row: Interview): void {
   router.push(`/interviews/${row.id}`)
 }
 
-function onDelete(id: string): void {
-  interviewStore.remove(id)
+async function onDelete(id: string): Promise<void> {
+  await interviewStore.remove(id)
   ElMessage.success('场次已删除，题目已保留')
 }
 

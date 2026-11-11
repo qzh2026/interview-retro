@@ -8,6 +8,7 @@ import App from './App.vue'
 import router from './router'
 import { bootstrapExtensions } from '@/core/extensions/registry'
 import { plugins } from '@/plugins'
+import { initializeStores } from '@/stores'
 import './styles/main.css'
 
 async function start(): Promise<void> {
@@ -25,6 +26,9 @@ async function start(): Promise<void> {
   // 必须在 app.use(router) 之前 await：Vue Router 安装即开始首次导航，
   // 插件路由要在这之前注册完；bootstrap 会等所有插件（含异步 setup）完成。
   await bootstrapExtensions({ plugins, router })
+
+  // 适配器（含异步云同步插件）注册完成后再拉首屏数据；必须在首次导航之前完成
+  await initializeStores()
 
   app.use(router)
   app.mount('#app')

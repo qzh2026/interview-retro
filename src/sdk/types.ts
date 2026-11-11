@@ -7,7 +7,7 @@
  *
  * 四类扩展点：
  * 1. 事件钩子   events（生命周期订阅 / 插件间消息）
- * 2. 可替换适配器 storageAdapter / aiAdapter / reviewStrategy
+ * 2. 可替换适配器 storageAdapter / asyncStorageAdapter / aiAdapter / reviewStrategy
  * 3. 数据格式   exporter / importer
  * 4. UI 插槽     menuItem / route / dashboardWidget / questionDetailTab / settingsPanel
  */
@@ -44,6 +44,7 @@ export type {
 export type ExtensionPoint =
   | 'event'
   | 'storageAdapter'
+  | 'asyncStorageAdapter'
   | 'aiAdapter'
   | 'reviewStrategy'
   | 'importer'
@@ -112,6 +113,24 @@ export interface StorageAdapter {
   read(): string | null
   write(raw: string): void
   clear(): void
+}
+
+/**
+ * 异步存储适配器（v2 新增）：IndexedDB / 远端同步都走这里。
+ *
+ * 与 StorageAdapter 是并列契约，**不修改同步接口**——既有的 sessionStorage 示例插件
+ * 与任何第三方同步适配器无需改动即可继续使用：核心会把它们自动包装成 Promise。
+ * 两者同时注册时以本适配器优先（替换型，后注册覆盖）。
+ *
+ * 约定：read 返回 null 表示「还没有数据」；clear 必须清掉该适配器持有的全部状态；
+ * read / write 抛错时由核心网关统一吞掉并上报 storage-health，不要让异常冒泡到页面。
+ */
+export interface AsyncStorageAdapter {
+  readonly id: string
+  readonly label: string
+  read(): Promise<string | null>
+  write(raw: string): Promise<void>
+  clear(): Promise<void>
 }
 
 export interface AiReviewRequest {
@@ -250,6 +269,8 @@ export interface PluginContext {
   registerMenuItem(item: MenuItemExtension): void
   registerRoute(route: RouteExtension): void
   useStorageAdapter(adapter: StorageAdapter): void
+  /** 注册异步适配器（替换型，优先级高于同步适配器） */
+  useAsyncStorageAdapter(adapter: AsyncStorageAdapter): void
   useAiAdapter(adapter: AiAdapter): void
   useReviewStrategy(strategy: ReviewStrategy): void
 }

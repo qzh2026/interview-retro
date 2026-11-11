@@ -145,22 +145,22 @@ watch(
   { immediate: true },
 )
 
-function onSave(): void {
+async function onSave(): Promise<void> {
   if (!draft.content.trim()) {
     ElMessage.warning('题目内容不能为空')
     return
   }
-  questionStore.update(id.value, { ...draft, tags: [...draft.tags] })
+  await questionStore.update(id.value, { ...draft, tags: [...draft.tags] })
   ElMessage.success('已保存')
 }
 
-function onReviewed(remembered: boolean): void {
-  questionStore.markReviewed(id.value, remembered)
+async function onReviewed(remembered: boolean): Promise<void> {
+  await questionStore.markReviewed(id.value, remembered)
   ElMessage.success(remembered ? '已记住，下次复习间隔拉长' : '已重置，明天再练一次')
 }
 
-function onDelete(): void {
-  questionStore.remove(id.value)
+async function onDelete(): Promise<void> {
+  await questionStore.remove(id.value)
   ElMessage.success('已删除')
   router.push('/questions')
 }

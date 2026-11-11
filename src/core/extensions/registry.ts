@@ -3,6 +3,7 @@ import type { Router } from 'vue-router'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import type {
   AiAdapter,
+  AsyncStorageAdapter,
   DashboardWidget,
   EventBus,
   ExportFormat,
@@ -30,7 +31,8 @@ import { disabledAiAdapter } from './disabled-ai-adapter'
  * - 注册表不 import 任何 store / view / plugin，避免循环依赖；
  *   插件列表由 main.ts 传入，插件组件可以反过来 import stores。
  * - 加法型扩展点（格式、插槽、事件）可多插件共存，id 重复会告警并忽略。
- * - 替换型扩展点（适配器、复习策略）后安装者覆盖前者，设置页展示当前生效者。
+ * - 替换型扩展点（适配器、复习策略）后安装者覆盖前者，设置页展示当前生效者；
+ *   同步 / 异步存储适配器是两张独立的表，网关优先取异步那张。
  * - 启用/禁用状态持久化在独立 key，切换后刷新页面生效（避免热卸载路由的复杂性）。
  */
 
@@ -46,6 +48,7 @@ interface RegistryState {
   menuItems: MenuItemExtension[]
   routes: RouteExtension[]
   storageAdapter: StorageAdapter
+  asyncStorageAdapter: AsyncStorageAdapter | null
   aiAdapter: AiAdapter
   reviewStrategy: ReviewStrategy
 }
@@ -60,6 +63,7 @@ const state: RegistryState = {
   menuItems: [],
   routes: [],
   storageAdapter: localStorageAdapter,
+  asyncStorageAdapter: null,
   aiAdapter: disabledAiAdapter,
   reviewStrategy: intervalReviewStrategy,
 }
@@ -108,12 +112,14 @@ export function getQuestionDetailTabs(): QuestionDetailTab[] { return [...state.
 export function getMenuItems(): MenuItemExtension[] { return [...state.menuItems] }
 
 export function getStorageAdapter(): StorageAdapter { return state.storageAdapter }
+export function getAsyncStorageAdapter(): AsyncStorageAdapter | null { return state.asyncStorageAdapter }
 export function getAiAdapter(): AiAdapter { return state.aiAdapter }
 export function getReviewStrategy(): ReviewStrategy { return state.reviewStrategy }
 
 export function getActiveAdapters() {
   return {
     storage: state.storageAdapter,
+    asyncStorage: state.asyncStorageAdapter,
     ai: state.aiAdapter,
     review: state.reviewStrategy,
   }
@@ -166,6 +172,10 @@ function createContext(pluginId: string): PluginContext {
     useStorageAdapter: (adapter) => {
       state.storageAdapter = adapter
       console.info(`[extensions] 存储适配器已切换为 ${adapter.id}`)
+    },
+    useAsyncStorageAdapter: (adapter) => {
+      state.asyncStorageAdapter = adapter
+      console.info(`[extensions] 异步存储适配器已切换为 ${adapter.id}`)
     },
     useAiAdapter: (adapter) => {
       state.aiAdapter = adapter
