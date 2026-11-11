@@ -25,7 +25,12 @@
     <el-container>
       <el-header class="header">
         <span class="crumb">{{ route.meta.title ?? '面经复盘' }}</span>
-        <span class="header-right">{{ today }} · 数据仅保存在本机浏览器</span>
+        <span class="header-right">
+          {{ today }}
+          <el-tag :type="syncTagType" size="small" effect="plain" class="sync-tag">
+            {{ syncLabel }}
+          </el-tag>
+        </span>
       </el-header>
       <el-main class="main">
         <!-- 存储健康告警：写入失败 / 数据损坏这类静默故障必须让用户看见 -->
@@ -73,6 +78,7 @@ import {
   subscribeStorageIssue,
   type StorageIssue,
 } from '@/services/storage-health'
+import { syncStatus } from '@/services/cloud/status'
 
 // 先订阅再创建 store：启动期预加载（initializeStores）可能已经产生告警。
 // subscribeStorageIssue 订阅时会立即回放当前状态，所以晚订阅也不会漏掉启动期告警。
@@ -86,6 +92,29 @@ const route = useRoute()
 const questionStore = useQuestionStore()
 const dueCount = computed(() => questionStore.dueCount)
 const today = todayISO()
+
+/** 顶栏常驻同步状态条：本机 / 同步中 / 离线 / 出错 + 待推送数 */
+const syncLabel = computed(() => {
+  const base = {
+    disabled: '本机数据',
+    idle: '同步正常',
+    syncing: '同步中…',
+    offline: '离线可用',
+    error: '同步异常',
+  }[syncStatus.phase]
+  return syncStatus.pendingCount > 0 ? `${base} · 待推送 ${syncStatus.pendingCount}` : base
+})
+const syncTagType = computed(() => {
+  return (
+    {
+      disabled: 'info',
+      idle: 'success',
+      syncing: 'primary',
+      offline: 'warning',
+      error: 'danger',
+    } as const
+  )[syncStatus.phase]
+})
 // bootstrap 在 mount 前完成，此处拿到的是已注册完成的菜单项
 const extensionMenuItems = getMenuItems()
 
@@ -164,6 +193,12 @@ function dismissStorageIssue(): void {
 .header-right {
   font-size: 12px;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-tag {
+  font-weight: 400;
 }
 .main {
   padding: 0;

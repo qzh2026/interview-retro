@@ -9,9 +9,13 @@ import { session } from './session'
  * - credentials: 'include' 让 HttpOnly 刷新 Cookie 跟随请求；
  * - 访问令牌自动附加为 Bearer，401 时自动 refresh 并重试一次；
  * - 4xx 不重试；网络失败 / 5xx 对幂等请求最多重试 2 次；
+ * - 每次请求带超时（AbortController），挂起的请求不会永远卡住；
  * - 错误统一抛 ApiClientError（code + 中文文案），页面直接展示 message。
  */
 const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? '').replace(/\/$/, '')
+
+/** 单次请求超时（毫秒）：慢网络下快速失败，给用户明确文案而不是无限转圈 */
+const REQUEST_TIMEOUT_MS = 15_000
 
 export class ApiClientError extends Error {
   constructor(
@@ -24,6 +28,31 @@ export class ApiClientError extends Error {
   }
 }
 
+/**
+ * 把任意异常映射为可直接展示的中文文案。
+ * 视图层 catch 后统一走这里，不再各写各的提示。
+ */
+export function toUserMessage(err: unknown): string {
+  if (err instanceof ApiClientError) return err.message
+  if (err instanceof Error && err.message) return err.message
+  return '操作失败，请稍后重试'
+}
+
+/** 带超时的 fetch：超时抛 AbortError（name=AbortError） */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 let refreshInFlight: Promise<boolean> | null = null
 
 /** 用刷新 Cookie 换新访问令牌；并发调用共享同一次请求 */
@@ -31,11 +60,15 @@ function tryRefresh(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { Accept: 'application/json' },
-        })
+        const res = await fetchWithTimeout(
+          `${API_BASE}/api/auth/refresh`,
+          {
+            method: 'POST',
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+          },
+          REQUEST_TIMEOUT_MS,
+        )
         if (!res.ok) {
           session.clearSession()
           return false
@@ -58,6 +91,8 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   json?: unknown
   /** 网络失败 / 5xx 时是否自动重试（幂等请求才开） */
   retry?: boolean
+  /** 单次请求超时（毫秒），默认 15s */
+  timeoutMs?: number
 }
 
 const RETRY_DELAYS_MS = [200, 400]
@@ -68,12 +103,16 @@ async function doFetch(path: string, init: RequestOptions): Promise<Response> {
   if (init.json !== undefined) headers.set('Content-Type', 'application/json')
   if (session.accessToken) headers.set('Authorization', `Bearer ${session.accessToken}`)
 
-  return fetch(`${API_BASE}${path}`, {
-    method: init.method ?? 'GET',
-    headers,
-    credentials: 'include',
-    body: init.json === undefined ? undefined : JSON.stringify(init.json),
-  })
+  return fetchWithTimeout(
+    `${API_BASE}${path}`,
+    {
+      method: init.method ?? 'GET',
+      headers,
+      credentials: 'include',
+      body: init.json === undefined ? undefined : JSON.stringify(init.json),
+    },
+    init.timeoutMs ?? REQUEST_TIMEOUT_MS,
+  )
 }
 
 export async function request<T>(
@@ -87,12 +126,18 @@ export async function request<T>(
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
       res = await doFetch(path, init)
-    } catch {
+    } catch (err) {
       if (attempt < maxAttempts - 1) {
         await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]))
         continue
       }
-      throw new ApiClientError('NETWORK', '网络连接失败，请检查网络后重试', 0)
+      // 超时（AbortError）与网络断开分开给文案，便于用户判断
+      const aborted = err instanceof Error && err.name === 'AbortError'
+      throw new ApiClientError(
+        aborted ? 'TIMEOUT' : 'NETWORK',
+        aborted ? '请求超时，请检查网络后重试' : '网络连接失败，请检查网络后重试',
+        0,
+      )
     }
     // 5xx 可重试；4xx（含 401/429）直接走后续处理
     if (res.status >= 500 && attempt < maxAttempts - 1) {

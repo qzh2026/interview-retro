@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AuthUser, LoginRequest, RegisterRequest } from '../../shared/api'
 import { cloudApi } from '@/services/cloud/api'
-import { ApiClientError } from '@/services/cloud/http'
+import { toUserMessage } from '@/services/cloud/http'
 import { session } from '@/services/cloud/session'
 import { handleLogin, handleLogout, syncNow } from '@/services/cloud/engine'
 import { resetSyncStatus } from '@/services/cloud/status'
@@ -32,7 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fn()
       return true
     } catch (err) {
-      error.value = err instanceof ApiClientError ? err.message : '操作失败，请稍后重试'
+      error.value = toUserMessage(err)
       return false
     } finally {
       pending.value = false

@@ -140,6 +140,7 @@ import { CATEGORY_OPTIONS, DIFFICULTY_OPTIONS, MASTERY_OPTIONS, RATING_OPTIONS }
 import { formatDateTime } from '@/utils/date'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import type { Difficulty, MasteryLevel, QuestionCategory, SelfRating } from '@/types'
+import { toUserMessage } from '@/services/cloud/http'
 
 const route = useRoute()
 const router = useRouter()
@@ -184,19 +185,31 @@ async function onSave(): Promise<void> {
     ElMessage.warning('题目内容不能为空')
     return
   }
-  await questionStore.update(id.value, { ...draft, tags: [...draft.tags] })
-  ElMessage.success('已保存')
+  try {
+    await questionStore.update(id.value, { ...draft, tags: [...draft.tags] })
+    ElMessage.success('已保存')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 
 async function onReviewed(remembered: boolean): Promise<void> {
-  await questionStore.markReviewed(id.value, remembered)
-  ElMessage.success(remembered ? '已记住，下次复习间隔拉长' : '已重置，明天再练一次')
+  try {
+    await questionStore.markReviewed(id.value, remembered)
+    ElMessage.success(remembered ? '已记住，下次复习间隔拉长' : '已重置，明天再练一次')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 
 async function onDelete(): Promise<void> {
-  await questionStore.remove(id.value)
-  ElMessage.success('已删除')
-  router.push('/questions')
+  try {
+    await questionStore.remove(id.value)
+    ElMessage.success('已删除')
+    router.push('/questions')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 </script>
 

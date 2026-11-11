@@ -17,5 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run typecheck:server
+      - run: npm run typecheck:test
+      - run: npm run lint
       - run: npm test
       - run: npm run build

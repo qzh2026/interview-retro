@@ -113,6 +113,7 @@ import { useInterviewStore } from '@/stores/interview'
 import { ROUND_OPTIONS, RESULT_OPTIONS, labelOf } from '@/constants'
 import type { Interview, InterviewInput, InterviewResult } from '@/types'
 import { todayISO } from '@/utils/date'
+import { toUserMessage } from '@/services/cloud/http'
 
 const router = useRouter()
 const interviewStore = useInterviewStore()
@@ -142,14 +143,18 @@ async function onCreate(): Promise<void> {
     ElMessage.warning('公司和岗位不能为空')
     return
   }
-  const created = await interviewStore.create({
-    ...form,
-    company: form.company.trim(),
-    position: form.position.trim(),
-  })
-  dialogVisible.value = false
-  ElMessage.success('已创建，接着把被问到的题录进来吧')
-  router.push(`/interviews/${created.id}`)
+  try {
+    const created = await interviewStore.create({
+      ...form,
+      company: form.company.trim(),
+      position: form.position.trim(),
+    })
+    dialogVisible.value = false
+    ElMessage.success('已创建，接着把被问到的题录进来吧')
+    router.push(`/interviews/${created.id}`)
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 
 function goDetail(row: Interview): void {
@@ -157,8 +162,12 @@ function goDetail(row: Interview): void {
 }
 
 async function onDelete(id: string): Promise<void> {
-  await interviewStore.remove(id)
-  ElMessage.success('场次已删除，题目已保留')
+  try {
+    await interviewStore.remove(id)
+    ElMessage.success('场次已删除，题目已保留')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 
 function resultTagType(result: InterviewResult): 'success' | 'danger' | 'info' | 'warning' {

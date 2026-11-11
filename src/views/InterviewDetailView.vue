@@ -98,6 +98,7 @@ import {
 } from '@/constants'
 import type { InterviewResult, QuestionInput } from '@/types'
 import QuestionForm from '@/components/common/QuestionForm.vue'
+import { toUserMessage } from '@/services/cloud/http'
 
 const route = useRoute()
 const interviewStore = useInterviewStore()
@@ -117,14 +118,22 @@ watch(
 )
 
 async function onResultChange(value: InterviewResult): Promise<void> {
-  await interviewStore.update(id.value, { result: value })
-  ElMessage.success('结果已更新')
+  try {
+    await interviewStore.update(id.value, { result: value })
+    ElMessage.success('结果已更新')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 
 async function onAddQuestion(payload: QuestionInput): Promise<void> {
-  await questionStore.create(payload)
-  dialogVisible.value = false
-  ElMessage.success('题目已保存，明天进入第一轮复习')
+  try {
+    await questionStore.create(payload)
+    dialogVisible.value = false
+    ElMessage.success('题目已保存，明天进入第一轮复习')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 </script>
 

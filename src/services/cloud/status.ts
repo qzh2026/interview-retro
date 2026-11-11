@@ -28,3 +28,30 @@ export function resetSyncStatus(): void {
   syncStatus.pendingCount = 0
   syncStatus.message = '未登录，数据仅保存在本机'
 }
+
+/**
+ * 浏览器网络感知：offline 立即切离线相位，online 恢复并可触发一次同步。
+ * 返回取消监听函数；非浏览器环境（测试）是 no-op。
+ */
+export function watchNetwork(onOnline?: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+
+  const handleOffline = (): void => {
+    if (syncStatus.phase === 'disabled') return
+    syncStatus.phase = 'offline'
+    syncStatus.message = '网络已断开，数据暂存本地'
+  }
+  const handleOnline = (): void => {
+    if (syncStatus.phase !== 'offline') return
+    syncStatus.phase = 'idle'
+    syncStatus.message = '网络已恢复'
+    onOnline?.()
+  }
+
+  window.addEventListener('offline', handleOffline)
+  window.addEventListener('online', handleOnline)
+  return () => {
+    window.removeEventListener('offline', handleOffline)
+    window.removeEventListener('online', handleOnline)
+  }
+}

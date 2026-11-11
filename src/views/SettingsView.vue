@@ -229,6 +229,7 @@ import { useInterviewStore } from '@/stores/interview'
 import { useQuestionStore } from '@/stores/question'
 import { useAuthStore } from '@/stores/auth'
 import { syncStatus } from '@/services/cloud/status'
+import { toUserMessage } from '@/services/cloud/http'
 import { downloadTextFile } from '@/services/backup'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import { loadState } from '@/services/storage'
@@ -342,7 +343,7 @@ async function onFileChange(event: Event): Promise<void> {
     ElMessage.success('导入成功')
   } catch (err) {
     if (err instanceof Error && err.message !== 'cancel') {
-      ElMessage.error(err.message)
+      ElMessage.error(toUserMessage(err))
     }
   } finally {
     target.value = ''
@@ -386,7 +387,7 @@ async function runExport(formatId: string): Promise<void> {
     downloadTextFile(result.filename, result.content, result.mimeType)
     ElMessage.success(`已导出 ${result.filename}`)
   } catch (err) {
-    ElMessage.error(`导出失败：${(err as Error).message}`)
+    ElMessage.error(`导出失败：${toUserMessage(err)}`)
   }
 }
 
@@ -409,7 +410,7 @@ async function onImportFileChange(event: Event): Promise<void> {
     await settingsStore.refreshUsage()
     ElMessage.success(`导入完成：${interviews.length} 场面试，${questions.length} 道题`)
   } catch (err) {
-    ElMessage.error(`导入失败：${(err as Error).message}`)
+    ElMessage.error(`导入失败：${toUserMessage(err)}`)
   } finally {
     target.value = ''
   }

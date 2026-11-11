@@ -67,10 +67,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useQuestionStore } from '@/stores/question'
 import { useSettingsStore } from '@/stores/settings'
 import { CATEGORY_OPTIONS, labelOf } from '@/constants'
 import type { Question } from '@/types'
+import { toUserMessage } from '@/services/cloud/http'
 
 const questionStore = useQuestionStore()
 const settingsStore = useSettingsStore()
@@ -92,9 +94,13 @@ onMounted(resetQueue)
 
 async function answer(remembered: boolean): Promise<void> {
   if (!current.value) return
-  await questionStore.markReviewed(current.value.id, remembered)
-  index.value += 1
-  revealed.value = false
+  try {
+    await questionStore.markReviewed(current.value.id, remembered)
+    index.value += 1
+    revealed.value = false
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 </script>
 

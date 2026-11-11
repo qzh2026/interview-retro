@@ -1,6 +1,7 @@
 import { definePlugin } from '@/sdk'
 import { createCloudSyncAdapter } from '@/services/cloud/adapter'
 import { configureCloudSync, startPolling, syncNow } from '@/services/cloud/engine'
+import { watchNetwork } from '@/services/cloud/status'
 import { tryRestoreSession } from '@/stores/auth'
 
 /** 启动期网络操作的兜底超时：慢网络不能拖死整个应用启动 */
@@ -44,5 +45,7 @@ export default definePlugin({
     }
 
     startPolling()
+    // 网络感知：掉线立即提示，恢复后补一次同步（离线期间的本地写入自动带上去）
+    watchNetwork(() => void syncNow())
   },
 })

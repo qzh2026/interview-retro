@@ -72,6 +72,7 @@ import { useQuestionStore } from '@/stores/question'
 import { CATEGORY_OPTIONS, MASTERY_OPTIONS, labelOf } from '@/constants'
 import type { MasteryLevel, Question, QuestionCategory, QuestionInput } from '@/types'
 import QuestionForm from '@/components/common/QuestionForm.vue'
+import { toUserMessage } from '@/services/cloud/http'
 
 const router = useRouter()
 const questionStore = useQuestionStore()
@@ -98,9 +99,13 @@ function goDetail(row: Question): void {
 }
 
 async function onAddQuestion(payload: QuestionInput): Promise<void> {
-  await questionStore.create(payload)
-  dialogVisible.value = false
-  ElMessage.success('题目已保存')
+  try {
+    await questionStore.create(payload)
+    dialogVisible.value = false
+    ElMessage.success('题目已保存')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
 }
 </script>
 
