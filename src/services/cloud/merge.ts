@@ -25,6 +25,27 @@ export interface FieldStamp {
 export type EntityStamps = Record<string, FieldStamp | undefined>
 export type Stamps = Record<string, EntityStamps>
 
+/** 一次「远端覆盖本地且值有实质差异」的记录；不进 PersistedState，由适配器落盘到独立 key */
+export interface SyncConflict {
+  /** 稳定 id：${entityType}:${entityId}:${field}:${changeId} */
+  id: string
+  entityType: 'interview' | 'question' | 'settings'
+  entityId: string
+  field: string
+  /** 被覆盖前的本地值 */
+  localValue: unknown
+  /** 远端写入的新值 */
+  remoteValue: unknown
+  /** 本地原时间戳与 changeId */
+  localStamp: FieldStamp
+  /** 远端变更的时间戳与 changeId */
+  remoteStamp: FieldStamp
+  /** 远端变更 changeId */
+  remoteChangeId: string
+  /** 检测到冲突的时间（ISO） */
+  detectedAt: string
+}
+
 const ZERO_STAMP: FieldStamp = { t: 0, c: '' }
 
 export function stampKey(entityType: string, entityId: string): string {
@@ -39,6 +60,12 @@ function parseTime(iso: unknown): number {
   if (typeof iso !== 'string') return 0
   const t = Date.parse(iso)
   return Number.isFinite(t) ? t : 0
+}
+
+/** 实质差异判断：基本相等（含数组/对象 JSON 一致）视为无差异，避免噪音 */
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  return JSON.stringify(a) === JSON.stringify(b)
 }
 
 function emptyState(): PersistedState {
@@ -72,7 +99,8 @@ export function mergeChanges(
   state: PersistedState,
   changes: ReadonlyArray<SyncChangeInput & { seq?: number }>,
   stamps: Stamps,
-): { state: PersistedState; stamps: Stamps } {
+): { state: PersistedState; stamps: Stamps; conflicts: SyncConflict[] } {
+  const conflicts: SyncConflict[] = []
   const next: PersistedState = {
     schemaVersion: state.schemaVersion,
     interviews: [...state.interviews],
@@ -121,6 +149,21 @@ export function mergeChanges(
       for (const [field, value] of Object.entries(change.fields ?? {})) {
         const local = stamp[field] ?? ZERO_STAMP
         if (!wins(incoming, local)) continue
+        const oldValue = settings[field]
+        if (!valuesEqual(oldValue, value)) {
+          conflicts.push({
+            id: `${key}:${field}:${change.changeId}`,
+            entityType: 'settings',
+            entityId: change.entityId,
+            field,
+            localValue: oldValue,
+            remoteValue: value,
+            localStamp: local,
+            remoteStamp: incoming,
+            remoteChangeId: change.changeId,
+            detectedAt: new Date().toISOString(),
+          })
+        }
         settings[field] = value
         stamp[field] = incoming
       }
@@ -154,6 +197,21 @@ export function mergeChanges(
     for (const [field, value] of Object.entries(change.fields ?? {})) {
       const local = stamp[field] ?? fallback
       if (!wins(incoming, local)) continue
+      const oldValue = entity[field]
+      if (!valuesEqual(oldValue, value)) {
+        conflicts.push({
+          id: `${key}:${field}:${change.changeId}`,
+          entityType: change.entityType as 'interview' | 'question',
+          entityId: change.entityId,
+          field,
+          localValue: oldValue,
+          remoteValue: value,
+          localStamp: local,
+          remoteStamp: incoming,
+          remoteChangeId: change.changeId,
+          detectedAt: new Date().toISOString(),
+        })
+      }
       patch[field] = value
       stamp[field] = incoming
       touched = true
@@ -166,7 +224,7 @@ export function mergeChanges(
     else next.questions = updatedList as Question[]
   }
 
-  return { state: next, stamps: out }
+  return { state: next, stamps: out, conflicts }
 }
 
 /** 本地写入产生的变更也要记时间戳，防止回声与旧远端变更覆盖新本地值 */

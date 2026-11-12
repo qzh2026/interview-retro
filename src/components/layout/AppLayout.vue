@@ -13,7 +13,15 @@
           今日复习
           <el-badge v-if="dueCount > 0" :value="dueCount" class="menu-badge" type="primary" />
         </el-menu-item>
-        <el-menu-item index="/settings">数据与备份</el-menu-item>
+        <el-menu-item index="/settings">
+          数据与备份
+          <el-badge
+            v-if="unreadConflictCount > 0"
+            :value="unreadConflictCount"
+            class="menu-badge"
+            type="danger"
+          />
+        </el-menu-item>
         <!-- menuItem 扩展点：插件注册的侧边栏入口 -->
         <el-menu-item v-for="item in extensionMenuItems" :key="item.id" :index="item.path">
           {{ item.label }}
@@ -79,6 +87,7 @@ import {
   type StorageIssue,
 } from '@/services/storage-health'
 import { syncStatus } from '@/services/cloud/status'
+import { unreadConflictCount } from '@/services/cloud/conflicts'
 
 // 先订阅再创建 store：启动期预加载（initializeStores）可能已经产生告警。
 // subscribeStorageIssue 订阅时会立即回放当前状态，所以晚订阅也不会漏掉启动期告警。

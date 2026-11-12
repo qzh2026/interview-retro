@@ -67,6 +67,44 @@
       />
     </section>
 
+    <section v-if="authStore.isAuthenticated" class="card mb-16">
+      <h2 class="section-title">
+        同步冲突
+        <el-tag v-if="unreadConflictCount > 0" size="small" type="danger" class="point-tag">
+          {{ unreadConflictCount }} 条未读
+        </el-tag>
+      </h2>
+      <p class="muted intro">
+        多设备修改同一字段时，云端按「后写覆盖」合并。这里列出被远端覆盖的情况，你可一键恢复本机版本，恢复后会在下次同步推送到其它设备。
+      </p>
+      <template v-if="conflicts.length > 0">
+        <div v-for="c in conflicts" :key="c.id" class="conflict-item">
+          <div class="conflict-head">
+            <strong>{{ entityLabel(c.entityType) }} · {{ fieldLabel(c.field) }}</strong>
+            <span class="muted">{{ formatTime(c.detectedAt) }}</span>
+          </div>
+          <div class="conflict-diff">
+            <div class="diff-col">
+              <span class="diff-label">本机（被覆盖）</span>
+              <code>{{ formatValue(c.localValue) }}</code>
+            </div>
+            <div class="diff-col">
+              <span class="diff-label">云端（生效中）</span>
+              <code>{{ formatValue(c.remoteValue) }}</code>
+            </div>
+          </div>
+          <div class="conflict-actions">
+            <el-button size="small" type="primary" @click="onRestore(c)">恢复我的版本</el-button>
+            <el-button size="small" @click="onDismiss(c.id)">忽略</el-button>
+          </div>
+        </div>
+        <div class="right">
+          <el-button size="small" @click="onClearConflicts">清空全部记录</el-button>
+        </div>
+      </template>
+      <p v-else class="muted">暂无同步冲突，当前数据以你本机为准。</p>
+    </section>
+
     <section class="card mb-16">
       <h2 class="section-title">复习策略</h2>
       <div class="setting-row">
@@ -218,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getActiveAdapters,
@@ -234,12 +272,20 @@ import { useQuestionStore } from '@/stores/question'
 import { useAuthStore } from '@/stores/auth'
 import { syncStatus } from '@/services/cloud/status'
 import { toUserMessage } from '@/services/cloud/http'
+import { getCloudAdapter } from '@/services/cloud/engine'
+import {
+  getConflicts,
+  markConflictsRead,
+  setConflicts,
+  unreadConflictCount,
+} from '@/services/cloud/conflicts'
+import type { SyncConflict } from '@/services/cloud/merge'
 import { downloadTextFile } from '@/services/backup'
 import { loadSampleData } from '@/services/sample-data'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import { loadState } from '@/services/storage'
 import { todayISO } from '@/utils/date'
-import type { ExportContext, ExtensionPoint } from '@/sdk'
+import type { AppSettings, ExportContext, ExtensionPoint, Interview, Question } from '@/sdk'
 
 const POINT_LABELS: Record<ExtensionPoint, string> = {
   event: '事件订阅',
@@ -310,6 +356,72 @@ const panels = getSettingsPanels()
 const adapters = getActiveAdapters()
 const acceptAttr = computed(() => importers.map((item) => item.accept).join(','))
 let activeImporterId = ''
+
+/* ---- 同步冲突（只读展示 + 一键恢复本机版本） ---- */
+const conflicts = computed(() => getConflicts())
+
+const FIELD_LABELS: Record<string, string> = {
+  content: '题目内容',
+  myAnswer: '我的回答',
+  idealAnswer: '正确思路',
+  lesson: '踩坑点',
+  category: '分类',
+  difficulty: '难度',
+  selfRating: '自评',
+  mastery: '掌握度',
+  tags: '标签',
+  company: '公司',
+  position: '岗位',
+  round: '轮次',
+  result: '结果',
+  reviewIntervals: '复习间隔',
+  dailyReviewLimit: '每日上限',
+}
+
+function entityLabel(type: string): string {
+  return type === 'question' ? '题目' : type === 'interview' ? '面试场次' : '设置'
+}
+
+function fieldLabel(field: string): string {
+  return FIELD_LABELS[field] ?? field
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return '（空）'
+  if (typeof value === 'string') return value || '（空）'
+  if (Array.isArray(value)) return value.length ? value.join(', ') : '（空）'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+async function onRestore(c: SyncConflict): Promise<void> {
+  try {
+    if (c.entityType === 'question') {
+      await questionStore.update(c.entityId, { [c.field]: c.localValue } as Partial<Question>)
+    } else if (c.entityType === 'interview') {
+      await interviewStore.update(c.entityId, { [c.field]: c.localValue } as Partial<Interview>)
+    } else {
+      await settingsStore.update({ [c.field]: c.localValue } as Partial<AppSettings>)
+    }
+    onDismiss(c.id)
+    ElMessage.success('已恢复为你本机版本，将在下次同步推送到其它设备')
+  } catch (err) {
+    ElMessage.error(toUserMessage(err))
+  }
+}
+
+function onDismiss(id: string): void {
+  getCloudAdapter()?.dismissConflict(id)
+  setConflicts(getCloudAdapter()?.getConflicts() ?? [])
+}
+
+function onClearConflicts(): void {
+  getCloudAdapter()?.clearConflicts()
+  setConflicts([])
+  markConflictsRead()
+}
+
+onMounted(() => markConflictsRead())
 
 async function onSaveSettings(): Promise<void> {
   const list = intervalText.value
@@ -511,5 +623,51 @@ async function onImportFileChange(event: Event): Promise<void> {
   color: var(--text-muted);
   padding-left: 18px;
   margin: 0;
+}
+.conflict-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--bg);
+}
+.conflict-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.conflict-diff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.diff-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.diff-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.diff-col code {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.conflict-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
 }
 </style>

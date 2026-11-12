@@ -7,6 +7,7 @@ import type { CloudSyncAdapter } from './adapter'
 import { ApiClientError } from './http'
 import { session } from './session'
 import { resetSyncStatus, syncStatus } from './status'
+import { clearConflictsView, setConflicts } from './conflicts'
 
 /**
  * 同步引擎：推送待发队列 + 30s 轮询拉取 + 断网容忍。
@@ -29,6 +30,8 @@ let running: Promise<SyncNowResult> | null = null
 export function configureCloudSync(instance: CloudSyncAdapter): void {
   adapter = instance
   adapter.onDirty(scheduleFlush)
+  // 启动期把已落盘的冲突记录灌进展示态（角标才能正确显示历史未读）
+  setConflicts(adapter.getConflicts())
 }
 
 export function getCloudAdapter(): CloudSyncAdapter | null {
@@ -65,6 +68,8 @@ async function pull(doRefresh: boolean): Promise<boolean> {
   await withStorageLock(async () => {
     adapter!.integrateRemote(res.changes, res.cursor)
   })
+  // 合并可能产出新的冲突记录，刷新展示态（角标 / 设置页列表）
+  setConflicts(adapter!.getConflicts())
   if (res.changes.length > 0 && doRefresh) {
     await refreshStores()
   }
@@ -169,4 +174,5 @@ export function handleLogout(): void {
     flushTimer = null
   }
   resetSyncStatus()
+  clearConflictsView()
 }

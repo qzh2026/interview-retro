@@ -379,6 +379,121 @@ describe('mergeChanges 字段级 LWW', () => {
   })
 })
 
+describe('mergeChanges 冲突记录（不破坏收敛语义）', () => {
+  it('远端覆盖本地且有实质差异时记录一条冲突，且本地值被正确覆盖', () => {
+    const state = makeState({
+      questions: [makeQuestion('q1', { content: 'local', updatedAt: new Date(200).toISOString() })],
+    })
+    const { state: next, conflicts } = mergeChanges(
+      state,
+      [
+        record({
+          changeId: 'c-new',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 500,
+          fields: { content: 'new' },
+        }),
+      ],
+      {},
+    )
+    expect(next.questions[0].content).toBe('new')
+    expect(conflicts).toHaveLength(1)
+    expect(conflicts[0]).toMatchObject({
+      entityType: 'question',
+      entityId: 'q1',
+      field: 'content',
+      localValue: 'local',
+      remoteValue: 'new',
+      remoteChangeId: 'c-new',
+    })
+  })
+
+  it('值无实质差异（相同内容）不记录冲突', () => {
+    const state = makeState({
+      questions: [makeQuestion('q1', { content: 'same', updatedAt: new Date(200).toISOString() })],
+    })
+    const { conflicts } = mergeChanges(
+      state,
+      [
+        record({
+          changeId: 'c1',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 500,
+          fields: { content: 'same' },
+        }),
+      ],
+      {},
+    )
+    expect(conflicts).toHaveLength(0)
+  })
+
+  it('远端较旧（输给本地）不记录冲突', () => {
+    const state = makeState({
+      questions: [makeQuestion('q1', { content: 'local', updatedAt: new Date(200).toISOString() })],
+    })
+    const { conflicts } = mergeChanges(
+      state,
+      [
+        record({
+          changeId: 'c1',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 100,
+          fields: { content: 'old' },
+        }),
+      ],
+      {},
+    )
+    expect(conflicts).toHaveLength(0)
+  })
+
+  it('回声（自家 changeId）不记录冲突', () => {
+    const own = {
+      changeId: 'mine',
+      entityType: 'question' as const,
+      entityId: 'q1',
+      op: 'upsert' as const,
+      updatedAt: 300,
+      fields: { content: 'mine' },
+    }
+    const state = makeState({ questions: [makeQuestion('q1', { content: 'mine' })] })
+    const stamps = applyOwnStamps({}, [own])
+    const { conflicts } = mergeChanges(state, [record(own)], stamps)
+    expect(conflicts).toHaveLength(0)
+  })
+
+  it('合并不修改入参 state / stamps（含冲突分支）', () => {
+    const state = makeState({
+      questions: [makeQuestion('q1', { content: 'local', updatedAt: new Date(200).toISOString() })],
+    })
+    const stamps: Stamps = {}
+    const stateCopy = JSON.stringify(state)
+    const stampsCopy = JSON.stringify(stamps)
+    const { conflicts } = mergeChanges(
+      state,
+      [
+        record({
+          changeId: 'c',
+          entityType: 'question',
+          entityId: 'q1',
+          op: 'upsert',
+          updatedAt: 999,
+          fields: { content: 'x' },
+        }),
+      ],
+      stamps,
+    )
+    expect(conflicts).toHaveLength(1)
+    expect(JSON.stringify(state)).toBe(stateCopy)
+    expect(JSON.stringify(stamps)).toBe(stampsCopy)
+  })
+})
+
 describe('CloudSyncAdapter 待推送队列', () => {
   let adapter: ReturnType<typeof createCloudSyncAdapter>
 
@@ -459,5 +574,63 @@ describe('CloudSyncAdapter 待推送队列', () => {
     expect(merged.questions).toHaveLength(2)
     // 合并不触发本地变更（没有回声进队列）
     expect(adapter.takePending()).toHaveLength(0)
+  })
+
+  it('integrateRemote 把覆盖型冲突落盘到独立 key，可单独 dismiss', async () => {
+    const state = makeState({ questions: [makeQuestion('q1', { content: 'local' })] })
+    await adapter.write(JSON.stringify(state))
+    adapter.beginAccount('user-1')
+    adapter.confirmPushed(adapter.takePending().map((c) => c.changeId))
+
+    const remote = record(
+      {
+        changeId: 'remote-1',
+        entityType: 'question',
+        entityId: 'q1',
+        op: 'upsert',
+        updatedAt: Date.now() + 1000,
+        fields: { content: 'remote' },
+      },
+      7,
+    )
+    adapter.integrateRemote([remote], 7)
+
+    const conflicts = adapter.getConflicts()
+    expect(conflicts).toHaveLength(1)
+    expect(conflicts[0]).toMatchObject({
+      entityType: 'question',
+      entityId: 'q1',
+      field: 'content',
+      localValue: 'local',
+      remoteValue: 'remote',
+    })
+
+    adapter.dismissConflict(conflicts[0].id)
+    expect(adapter.getConflicts()).toHaveLength(0)
+  })
+
+  it('integrateRemote 不污染 PersistedState（冲突走独立 key）', async () => {
+    const state = makeState({ questions: [makeQuestion('q1', { content: 'local' })] })
+    await adapter.write(JSON.stringify(state))
+    adapter.beginAccount('user-1')
+    adapter.confirmPushed(adapter.takePending().map((c) => c.changeId))
+
+    const remote = record(
+      {
+        changeId: 'remote-2',
+        entityType: 'question',
+        entityId: 'q1',
+        op: 'upsert',
+        updatedAt: Date.now() + 1000,
+        fields: { content: 'remote' },
+      },
+      8,
+    )
+    adapter.integrateRemote([remote], 8)
+
+    // 冲突数据不进入主状态 JSON
+    const raw = (await adapter.read()) ?? '{}'
+    expect(raw).not.toContain('sync-conflicts')
+    expect(raw).not.toContain('localValue')
   })
 })

@@ -4,7 +4,7 @@ import { localStorageAdapter } from '@/core/extensions/local-storage-adapter'
 import type { PersistedState } from '@/types'
 import type { SyncChangeInput, SyncChangeRecord } from '../../../shared/api'
 import { diffStates } from './diff'
-import { applyOwnStamps, mergeChanges, toMergeableState, type Stamps } from './merge'
+import { applyOwnStamps, mergeChanges, toMergeableState, type Stamps, type SyncConflict } from './merge'
 
 /**
  * 混合云同步适配器（AsyncStorageAdapter 实现）。
@@ -25,6 +25,10 @@ import { applyOwnStamps, mergeChanges, toMergeableState, type Stamps } from './m
 
 const META_KEY = 'interview-retro:sync-meta'
 const PENDING_KEY = 'interview-retro:sync-pending'
+const CONFLICTS_KEY = 'interview-retro:sync-conflicts'
+
+/** 冲突记录最多保留条数（按检测时间倒序，旧的自然淘汰） */
+const MAX_CONFLICTS = 100
 
 interface SyncMeta {
   userId: string | null
@@ -40,19 +44,28 @@ function defaultMeta(): SyncMeta {
 
 let memoryMeta: string | null = null
 let memoryPending: string | null = null
+let memoryConflicts: string | null = null
+
+function readMemory(key: string): string | null {
+  if (key === META_KEY) return memoryMeta
+  if (key === PENDING_KEY) return memoryPending
+  if (key === CONFLICTS_KEY) return memoryConflicts
+  return null
+}
 
 function ledgerGet(key: string): string | null {
-  if (typeof window === 'undefined') return key === META_KEY ? memoryMeta : memoryPending
+  if (typeof window === 'undefined') return readMemory(key)
   try {
     return window.localStorage.getItem(key)
   } catch {
-    return key === META_KEY ? memoryMeta : memoryPending
+    return readMemory(key)
   }
 }
 
 function ledgerSet(key: string, value: string): void {
   if (key === META_KEY) memoryMeta = value
-  else memoryPending = value
+  else if (key === PENDING_KEY) memoryPending = value
+  else if (key === CONFLICTS_KEY) memoryConflicts = value
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(key, value)
@@ -95,6 +108,21 @@ function savePending(pending: SyncChangeInput[]): void {
   ledgerSet(PENDING_KEY, JSON.stringify(pending))
 }
 
+/** 冲突记录读写：独立 key，绝不与 PersistedState / 同步元数据混在一起 */
+function loadConflicts(): SyncConflict[] {
+  try {
+    const parsed = JSON.parse(ledgerGet(CONFLICTS_KEY) ?? '[]') as unknown
+    if (Array.isArray(parsed)) return parsed as SyncConflict[]
+  } catch {
+    // 冲突账本损坏不影响同步主流程
+  }
+  return []
+}
+
+function saveConflicts(list: SyncConflict[]): void {
+  ledgerSet(CONFLICTS_KEY, JSON.stringify(list))
+}
+
 function parseRaw(raw: string | null): PersistedState {
   if (!raw) {
     return {
@@ -122,6 +150,12 @@ export interface CloudSyncAdapter extends AsyncStorageAdapter {
   takePending(): SyncChangeInput[]
   confirmPushed(changeIds: string[]): void
   getCursor(): number
+  /** 读取已记录的同步冲突（不进 PersistedState） */
+  getConflicts(): SyncConflict[]
+  /** 移除单条冲突记录 */
+  dismissConflict(id: string): void
+  /** 清空全部冲突记录 */
+  clearConflicts(): void
   /** 本地写入产生待推送变更时通知（引擎调度 flush） */
   onDirty(handler: () => void): void
 }
@@ -175,12 +209,25 @@ export function createCloudSyncAdapter(): CloudSyncAdapter {
     integrateRemote(changes, cursor) {
       const meta = loadMeta()
       const base = parseRaw(localStorageAdapter.read())
-      const { state, stamps } = mergeChanges(base, changes, meta.stamps)
+      const { state, stamps, conflicts } = mergeChanges(base, changes, meta.stamps)
       meta.stamps = stamps
       meta.cursor = cursor
       saveMeta(meta)
       if (changes.length > 0) {
         localStorageAdapter.write(JSON.stringify(state))
+      }
+      if (conflicts.length > 0) {
+        // 新的在前，按 id 去重（相同 changeId 重复应用时只保留一条），裁剪到上限
+        const merged = [...conflicts, ...loadConflicts()]
+        const byId = new Set<string>()
+        const ordered: SyncConflict[] = []
+        for (const c of merged) {
+          if (!byId.has(c.id)) {
+            byId.add(c.id)
+            ordered.push(c)
+          }
+        }
+        saveConflicts(ordered.slice(0, MAX_CONFLICTS))
       }
     },
 
@@ -195,6 +242,18 @@ export function createCloudSyncAdapter(): CloudSyncAdapter {
 
     getCursor() {
       return loadMeta().cursor
+    },
+
+    getConflicts() {
+      return loadConflicts()
+    },
+
+    dismissConflict(id) {
+      saveConflicts(loadConflicts().filter((c) => c.id !== id))
+    },
+
+    clearConflicts() {
+      saveConflicts([])
     },
 
     onDirty(handler) {
