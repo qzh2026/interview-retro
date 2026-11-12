@@ -1,5 +1,5 @@
 <template>
-    <div class="page" :class="{ 'page--zoomed': activePanel !== null }">
+    <div class="page">
       <div class="page-header">
       <div>
         <h1>单题复盘</h1>
@@ -182,111 +182,105 @@
       </section>
     </template>
 
-    <!-- 模块放大抽屉：右侧滑出，左页保持完整且可继续点其他标题切换 -->
-    <aside v-if="panel" class="zoom-panel" :aria-label="`放大查看：${panel.title}`">
-      <div class="zoom-head">
-        <div>
-          <div class="zoom-kicker">放大查看</div>
-          <h2 class="zoom-title">{{ panel.title }}</h2>
+    <!-- 模块放大弹层：点击标题弹出居中大卡片，遮罩 / 关闭 / ESC 收回 -->
+    <div v-if="panel" class="zoom-overlay" @click.self="closePanel">
+      <section
+        class="zoom-modal"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="`放大查看：${panel.title}`"
+      >
+        <header class="zoom-head">
+          <div>
+            <div class="zoom-kicker">放大查看</div>
+            <h2 class="zoom-title">{{ panel.title }}</h2>
+          </div>
+          <el-button @click="closePanel">关闭</el-button>
+        </header>
+
+        <div class="zoom-body">
+          <template v-if="panel.kind === 'question'">
+            <el-input v-model="draft.content" type="textarea" :rows="10" class="zoom-input" />
+            <div class="form-row mt-16">
+              <el-form-item label="分类">
+                <el-select v-model="draft.category" style="width: 100%">
+                  <el-option v-for="o in CATEGORY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="难度">
+                <el-select v-model="draft.difficulty" style="width: 100%">
+                  <el-option v-for="o in DIFFICULTY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="自评">
+                <el-select v-model="draft.selfRating" style="width: 100%">
+                  <el-option v-for="o in RATING_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="掌握度">
+                <el-select v-model="draft.mastery" style="width: 100%">
+                  <el-option v-for="o in MASTERY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+                </el-select>
+              </el-form-item>
+            </div>
+            <el-form-item label="知识点标签" class="mt-16">
+              <el-select
+                v-model="draft.tags"
+                multiple
+                filterable
+                allow-create
+                default-first-option
+                style="width: 100%"
+              >
+                <el-option v-for="tag in draft.tags" :key="tag" :label="tag" :value="tag" />
+              </el-select>
+            </el-form-item>
+          </template>
+
+          <el-input
+            v-else-if="activePanel === 'myAnswer'"
+            v-model="draft.myAnswer"
+            type="textarea"
+            :rows="20"
+            placeholder="原样记录"
+            class="zoom-input"
+          />
+          <el-input
+            v-else-if="activePanel === 'idealAnswer'"
+            v-model="draft.idealAnswer"
+            type="textarea"
+            :rows="20"
+            placeholder="查资料后整理"
+            class="zoom-input"
+          />
+          <el-input
+            v-else-if="activePanel === 'lesson'"
+            v-model="draft.lesson"
+            type="textarea"
+            :rows="14"
+            class="zoom-input"
+          />
+
+          <template v-else>
+            <div class="zoom-review">
+              <div class="zoom-review-stat">
+                已复习 <strong>{{ question?.reviewCount ?? 0 }}</strong> 次
+              </div>
+              <div class="muted">下次 {{ question?.nextReviewAt || '—' }}</div>
+              <div v-if="question?.lastReviewedAt" class="muted">
+                上次 {{ formatDateTime(question.lastReviewedAt) }}
+              </div>
+            </div>
+            <div class="zoom-review-actions">
+              <el-button @click="onReviewed(false)">没记住，明天再来</el-button>
+              <el-button type="primary" @click="onReviewed(true)">记住了，拉长间隔</el-button>
+            </div>
+          </template>
         </div>
-        <el-button @click="closePanel">收起</el-button>
-      </div>
 
-      <div class="zoom-switch">
-        <button
-          v-for="item in QUESTION_PANELS"
-          :key="item.id"
-          type="button"
-          class="zoom-chip"
-          :class="{ 'is-active': activePanel === item.id }"
-          @click="openPanel(item.id)"
-        >
-          {{ item.title }}
-        </button>
-      </div>
-
-      <div class="zoom-body">
-        <template v-if="panel.kind === 'question'">
-          <el-input v-model="draft.content" type="textarea" :rows="10" class="zoom-input" />
-          <div class="form-row mt-16">
-            <el-form-item label="分类">
-              <el-select v-model="draft.category" style="width: 100%">
-                <el-option v-for="o in CATEGORY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="难度">
-              <el-select v-model="draft.difficulty" style="width: 100%">
-                <el-option v-for="o in DIFFICULTY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="自评">
-              <el-select v-model="draft.selfRating" style="width: 100%">
-                <el-option v-for="o in RATING_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="掌握度">
-              <el-select v-model="draft.mastery" style="width: 100%">
-                <el-option v-for="o in MASTERY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
-              </el-select>
-            </el-form-item>
-          </div>
-          <el-form-item label="知识点标签" class="mt-16">
-            <el-select
-              v-model="draft.tags"
-              multiple
-              filterable
-              allow-create
-              default-first-option
-              style="width: 100%"
-            >
-              <el-option v-for="tag in draft.tags" :key="tag" :label="tag" :value="tag" />
-            </el-select>
-          </el-form-item>
-        </template>
-
-        <el-input
-          v-else-if="activePanel === 'myAnswer'"
-          v-model="draft.myAnswer"
-          type="textarea"
-          :rows="20"
-          placeholder="原样记录"
-          class="zoom-input"
-        />
-        <el-input
-          v-else-if="activePanel === 'idealAnswer'"
-          v-model="draft.idealAnswer"
-          type="textarea"
-          :rows="20"
-          placeholder="查资料后整理"
-          class="zoom-input"
-        />
-        <el-input
-          v-else-if="activePanel === 'lesson'"
-          v-model="draft.lesson"
-          type="textarea"
-          :rows="14"
-          class="zoom-input"
-        />
-
-        <template v-else>
-          <div class="zoom-review">
-            <div class="zoom-review-stat">
-              已复习 <strong>{{ question?.reviewCount ?? 0 }}</strong> 次
-            </div>
-            <div class="muted">下次 {{ question?.nextReviewAt || '—' }}</div>
-            <div v-if="question?.lastReviewedAt" class="muted">
-              上次 {{ formatDateTime(question.lastReviewedAt) }}
-            </div>
-          </div>
-          <div class="zoom-review-actions">
-            <el-button @click="onReviewed(false)">没记住，明天再来</el-button>
-            <el-button type="primary" @click="onReviewed(true)">记住了，拉长间隔</el-button>
-          </div>
-        </template>
-      </div>
-
-      <div class="zoom-foot">编辑内容会同步回主页面，点顶部「保存修改」后生效</div>
-    </aside>
+        <footer class="zoom-foot">编辑内容会同步回主页面，点顶部「保存修改」后生效</footer>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -303,11 +297,7 @@ import type { Difficulty, MasteryLevel, QuestionCategory, SelfRating } from '@/t
 import { CLOUD_UNREACHABLE_HINT, isBackendUnreachable, toUserMessage } from '@/services/cloud/http'
 import { isAiEnabled, reviewWithAi } from '@/services/ai'
 import { buildAiDraftPatch } from '@/services/ai-review'
-import {
-  getQuestionPanel,
-  QUESTION_PANELS,
-  type PanelId,
-} from '@/utils/question-panels'
+import { getQuestionPanel, type PanelId } from '@/utils/question-panels'
 
 const route = useRoute()
 const router = useRouter()
@@ -319,7 +309,7 @@ const tabs = getQuestionDetailTabs()
 const aiLoading = ref(false)
 const aiAbort = ref<AbortController | null>(null)
 
-/** 当前放大的模块；null = 未打开抽屉。抽屉内控件与主页面共用同一个 draft */
+/** 当前放大的模块；null = 弹层未打开。弹层内控件与主页面共用同一个 draft */
 const activePanel = ref<PanelId | null>(null)
 const panel = computed(() => getQuestionPanel(activePanel.value))
 
@@ -331,16 +321,24 @@ function closePanel(): void {
   activePanel.value = null
 }
 
+// 模态打开时锁住背景滚动，关闭或离开页面后恢复
+watch(activePanel, (id) => {
+  document.body.style.overflow = id ? 'hidden' : ''
+})
+
 function onEscape(event: KeyboardEvent): void {
   if (event.key === 'Escape' && activePanel.value !== null) {
-    // AI 复盘进行中优先取消请求，避免误关抽屉打断用户
+    // AI 复盘进行中优先取消请求，避免误关弹层打断用户
     if (aiLoading.value) onAiCancel()
     else closePanel()
   }
 }
 
 onMounted(() => window.addEventListener('keydown', onEscape))
-onUnmounted(() => window.removeEventListener('keydown', onEscape))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onEscape)
+  document.body.style.overflow = ''
+})
 
 const draft = reactive({
   content: '',
@@ -487,36 +485,45 @@ async function onDelete(): Promise<void> {
   margin: 0;
 }
 
-/* 抽屉打开时左页让出右侧空间，保持全部模块可见、可继续点标题切换 */
-.page--zoomed {
-  --zoom-panel-width: min(52vw, 680px);
-  padding-right: calc(var(--zoom-panel-width) + 20px);
-}
-.page--zoomed .page-header {
-  flex-wrap: wrap;
-}
-
-.zoom-panel {
+/* 居中模态：遮罩盖住整页，放大卡片居中，一次专注一个模块 */
+.zoom-overlay {
   position: fixed;
-  top: 56px;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
-  width: var(--zoom-panel-width, 52vw);
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(15 18 23 / 45%);
+  animation: overlay-in 0.16s ease-out;
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.zoom-modal {
+  width: min(760px, 100%);
+  max-height: min(86vh, 900px);
   display: flex;
   flex-direction: column;
   background: var(--surface);
-  border-left: 1px solid var(--border);
-  box-shadow: -6px 0 18px rgb(31 35 41 / 8%);
-  animation: zoom-in 0.2s ease-out;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgb(15 18 23 / 22%);
+  overflow: hidden;
+  animation: modal-in 0.2s ease-out;
 }
-@keyframes zoom-in {
+@keyframes modal-in {
   from {
-    transform: translateX(16px);
-    opacity: 0.5;
+    transform: translateY(12px) scale(0.98);
+    opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
 }
@@ -537,32 +544,6 @@ async function onDelete(): Promise<void> {
   font-size: 15px;
   font-weight: 600;
   margin: 0;
-}
-.zoom-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--border);
-}
-.zoom-chip {
-  font: inherit;
-  font-size: 12px;
-  padding: 4px 10px;
-  color: var(--text-muted);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-.zoom-chip:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-.zoom-chip.is-active {
-  background: var(--primary-soft);
-  border-color: var(--primary);
-  color: var(--primary);
 }
 .zoom-body {
   flex: 1;
@@ -599,13 +580,11 @@ async function onDelete(): Promise<void> {
 }
 
 @media (max-width: 900px) {
-  .page--zoomed {
-    --zoom-panel-width: 100vw;
-    padding-right: 28px;
+  .zoom-overlay {
+    padding: 12px;
   }
-  .zoom-panel {
-    top: 0;
-    border-left: none;
+  .zoom-modal {
+    max-height: 94vh;
   }
 }
 

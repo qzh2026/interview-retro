@@ -1,15 +1,15 @@
 /**
  * 单题复盘页「可放大模块」的单一配置来源。
  *
- * 抽屉标题、点击目标与单测都从这里取 id / title，避免页面标题改动后
- * 抽屉标题漂移。配置文件保持纯数据 + 纯函数，不依赖 Vue 或 Element Plus，
+ * 放大弹层标题、点击目标与单测都从这里取 id / title，避免页面标题改动后
+ * 放大弹层标题漂移。配置文件保持纯数据 + 纯函数，不依赖 Vue 或 Element Plus，
  * 因此可以在 node 环境的 vitest 里直接断言。
  */
 
 /** 可放大的模块标识，与 QuestionDetailView 的 section 一一对应 */
 export type PanelId = 'content' | 'myAnswer' | 'idealAnswer' | 'lesson' | 'review'
 
-/** 抽屉内需要渲染的控件形态 */
+/** 放大弹层内需要渲染的控件形态 */
 export type PanelKind = 'question' | 'text' | 'review'
 
 export interface QuestionPanel {
@@ -41,7 +41,7 @@ export function isPanelId(value: string): value is PanelId {
   return QUESTION_PANELS.some((panel) => panel.id === value)
 }
 
-/** 抽屉标题；未选中模块时返回空串 */
+/** 放大弹层标题；未选中模块时返回空串 */
 export function getPanelTitle(id: PanelId | null): string {
   return getQuestionPanel(id)?.title ?? ''
 }
