@@ -22,10 +22,31 @@ export class ApiClientError extends Error {
     readonly code: string,
     message: string,
     readonly status: number,
+    /** 服务端下发的公开字段级信息（如校验失败的字段名与提示），不含密钥或堆栈 */
+    readonly details?: unknown,
   ) {
     super(message)
     this.name = 'ApiClientError'
   }
+}
+
+/**
+ * 把字段级校验详情拼进可读文案，避免用户只看到笼统的「请求参数不合法」。
+ * 只消费后端明确下发的公开 details；最多展示 3 条，异常结构一律降级为原文案。
+ * 例：请求参数不合法 → 请求参数不合法（tags.1：单个标签不能超过 200 字）
+ */
+export function describeApiError(err: ApiClientError): string {
+  if (err.code !== 'VALIDATION_ERROR' || !Array.isArray(err.details)) return err.message
+  const parts = err.details
+    .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+    .slice(0, 3)
+    .map((item) => {
+      const path = typeof item.path === 'string' && item.path ? `${item.path}：` : ''
+      const reason = typeof item.message === 'string' ? item.message : ''
+      return `${path}${reason}`.trim()
+    })
+    .filter(Boolean)
+  return parts.length > 0 ? `${err.message}（${parts.join('；')}）` : err.message
 }
 
 /**
@@ -178,10 +199,14 @@ export async function request<T>(
   if (!res.ok) {
     let code = 'INTERNAL'
     let message = `请求失败（HTTP ${res.status}）`
+    let details: unknown
     try {
-      const body = (await res.json()) as { error?: { code?: string; message?: string } }
+      const body = (await res.json()) as {
+        error?: { code?: string; message?: string; details?: unknown }
+      }
       code = body.error?.code ?? code
       message = body.error?.message ?? message
+      details = body.error?.details
     } catch {
       // 响应不是 JSON（如纯静态托管对 /api/* 返回的 404 HTML 页）→ 视为后端不可达，
       // 让上层能给「在线 Demo 无后端 / 自建后端未启动」的友好提示，而不是抛解析异常
@@ -190,7 +215,7 @@ export async function request<T>(
         message = '无法连接云同步服务'
       }
     }
-    throw new ApiClientError(code, message, res.status)
+    throw new ApiClientError(code, message, res.status, details)
   }
 
   if (res.status === 204) return undefined as T

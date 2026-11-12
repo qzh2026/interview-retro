@@ -1,6 +1,6 @@
 import { definePlugin } from '@/sdk'
 import type { AiAdapter, AiReviewOptions, AiReviewRequest, AiReviewResponse } from '@/sdk/types'
-import { ApiClientError, request } from '@/services/cloud/http'
+import { ApiClientError, describeApiError, request } from '@/services/cloud/http'
 import { session } from '@/services/cloud/session'
 
 /**
@@ -26,8 +26,8 @@ export function createCloudAiAdapter(): AiAdapter {
           signal: options?.signal,
         })
       } catch (err) {
-        // ApiClientError.message 已是服务端下发的中文可读文案，直接转成普通 Error
-        if (err instanceof ApiClientError) throw new Error(err.message)
+        // 服务端中文文案 + 字段级校验详情一起透传，避免用户只看到「请求参数不合法」却不知哪里错
+        if (err instanceof ApiClientError) throw new Error(describeApiError(err))
         throw err
       }
     },

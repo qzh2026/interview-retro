@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiClientError,
+  describeApiError,
   isBackendUnreachable,
   request,
   toUserMessage,
@@ -115,6 +116,60 @@ describe('网络错误映射', () => {
       code: 'NOT_FOUND',
     })
     expect(isBackendUnreachable(new ApiClientError('NOT_FOUND', '资源不存在', 404))).toBe(false)
+  })
+})
+
+describe('字段级校验详情可读化', () => {
+  it('保留服务端下发的 details，不丢弃字段信息', async () => {
+    const details = [{ path: 'tags.1', message: '单个标签不能超过 200 字' }]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: { code: 'VALIDATION_ERROR', message: '请求参数不合法', details },
+            }),
+            { status: 400 },
+          ),
+      ),
+    )
+    await expect(request('/api/anything', { timeoutMs: 100 })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      status: 400,
+      details,
+    })
+  })
+
+  it('VALIDATION_ERROR 拼上字段名与中文原因', () => {
+    const err = new ApiClientError('VALIDATION_ERROR', '请求参数不合法', 400, [
+      { path: 'tags.1', message: '单个标签不能超过 200 字' },
+    ])
+    expect(describeApiError(err)).toBe('请求参数不合法（tags.1：单个标签不能超过 200 字）')
+  })
+
+  it('非校验错误、无 details、异常结构都安全降级为原文案', () => {
+    expect(describeApiError(new ApiClientError('AI_TIMEOUT', 'AI 服务响应超时', 504))).toBe(
+      'AI 服务响应超时',
+    )
+    expect(describeApiError(new ApiClientError('VALIDATION_ERROR', '请求参数不合法', 400))).toBe(
+      '请求参数不合法',
+    )
+    expect(
+      describeApiError(new ApiClientError('VALIDATION_ERROR', '请求参数不合法', 400, 'oops')),
+    ).toBe('请求参数不合法')
+  })
+
+  it('details 里混入脏数据也只展示前 3 条有效项', () => {
+    const err = new ApiClientError('VALIDATION_ERROR', '请求参数不合法', 400, [
+      null,
+      'oops',
+      { path: 'a', message: 'x' },
+      { path: 'b', message: 'y' },
+      { path: 'c', message: 'z' },
+      { path: 'd', message: 'w' },
+    ])
+    expect(describeApiError(err)).toBe('请求参数不合法（a：x；b：y；c：z）')
   })
 })
 

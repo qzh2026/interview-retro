@@ -226,6 +226,51 @@ describe('POST /api/ai/review', () => {
     expect((r.body as ApiErrorBody).error.code).toBe('VALIDATION_ERROR')
   })
 
+  it('中文长标签（原 32 字上限）不再误判 400，且原样传给 AI 服务', async () => {
+    const stub: AiService = {
+      async review(input) {
+        return {
+          idealAnswer: '理想回答',
+          suggestedTags: input.tags ?? [],
+          suggestions: [],
+        }
+      },
+    }
+    const t = await makeTestApp({ aiService: stub })
+    app = t.app
+    const u = await registerUser(app, 'ai-long-tag@example.com')
+    const longTag = '技术架构表达与选型理由（RAG 链路 / Agent 编排 / 工程组件的取舍）'
+    const r = await review(app, u.accessToken, req({ tags: [longTag] }))
+    expect(r.statusCode).toBe(200)
+    expect((r.body as AiReviewResponse).suggestedTags).toContain(longTag)
+  })
+
+  it('标签数量放宽到 50 个，30 个标签仍可通过', async () => {
+    const stub: AiService = {
+      async review() {
+        return { idealAnswer: 'ok', suggestedTags: [], suggestions: [] }
+      },
+    }
+    const t = await makeTestApp({ aiService: stub })
+    app = t.app
+    const u = await registerUser(app, 'ai-many-tags@example.com')
+    const tags = Array.from({ length: 30 }, (_, i) => `知识点标签${i}`)
+    const r = await review(app, u.accessToken, req({ tags }))
+    expect(r.statusCode).toBe(200)
+  })
+
+  it('超过 200 字的标签仍被拒绝，details 带中文可读提示', async () => {
+    const t = await makeTestApp()
+    app = t.app
+    const u = await registerUser(app, 'ai-too-long-tag@example.com')
+    const r = await review(app, u.accessToken, req({ tags: ['标'.repeat(201)] }))
+    expect(r.statusCode).toBe(400)
+    const body = r.body as ApiErrorBody
+    expect(body.error.code).toBe('VALIDATION_ERROR')
+    expect(JSON.stringify(body.error.details)).toContain('单个标签不能超过 200 字')
+    expect(JSON.stringify(body.error.details)).not.toContain('sk-')
+  })
+
   it('默认未配置密钥时返回 503 AI_NOT_CONFIGURED', async () => {
     const t = await makeTestApp()
     app = t.app
