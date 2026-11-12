@@ -3,6 +3,7 @@ import cloudSync from './cloud-sync'
 import cloudAi from './cloud-ai'
 import markdownExporter from './markdown-exporter'
 import textImporter from './text-importer'
+import taizhangImporter from './taizhang-importer'
 import tagCloud from './tag-cloud'
 import reviewLog from './review-log'
 
@@ -21,6 +22,7 @@ export const plugins: Plugin[] = [
   cloudAi,
   markdownExporter,
   textImporter,
+  taizhangImporter,
   tagCloud,
   reviewLog,
 ]

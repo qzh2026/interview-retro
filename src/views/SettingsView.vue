@@ -539,11 +539,25 @@ async function onImportFileChange(event: Event): Promise<void> {
   if (!format) return
   try {
     const data = format.parse(await file.text(), { settings: settingsStore.settings })
+    // 去重：带 taizhangId 的题若本机已存在则跳过，支持台账每日增量导入而不产生重复
+    const existingTaizhang = new Set(
+      questionStore.items
+        .map((q) => q.metadata?.taizhangId)
+        .filter((id): id is string => typeof id === 'string'),
+    )
+    const questions = (data.questions ?? []).filter(
+      (q) =>
+        !(
+          q.metadata &&
+          typeof q.metadata.taizhangId === 'string' &&
+          existingTaizhang.has(q.metadata.taizhangId)
+        ),
+    )
     // 批量写入：一次读、一次写，不要逐条 create（会造成 N 次全量序列化）
     const interviews = await interviewStore.createMany(data.interviews ?? [])
-    const questions = await questionStore.createMany(data.questions ?? [])
+    const created = await questionStore.createMany(questions)
     await settingsStore.refreshUsage()
-    ElMessage.success(`导入完成：${interviews.length} 场面试，${questions.length} 道题`)
+    ElMessage.success(`导入完成：${interviews.length} 场面试，${created.length} 道题`)
   } catch (err) {
     ElMessage.error(`导入失败：${toUserMessage(err)}`)
   } finally {
