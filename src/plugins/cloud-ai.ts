@@ -1,5 +1,5 @@
 import { definePlugin } from '@/sdk'
-import type { AiAdapter, AiReviewRequest, AiReviewResponse } from '@/sdk/types'
+import type { AiAdapter, AiReviewOptions, AiReviewRequest, AiReviewResponse } from '@/sdk/types'
 import { ApiClientError, request } from '@/services/cloud/http'
 import { session } from '@/services/cloud/session'
 
@@ -13,12 +13,18 @@ export function createCloudAiAdapter(): AiAdapter {
   return {
     id: 'builtin:cloud-ai',
     label: '云 AI 复盘',
-    async review(req: AiReviewRequest): Promise<AiReviewResponse> {
+    async review(req: AiReviewRequest, options?: AiReviewOptions): Promise<AiReviewResponse> {
       if (!session.accessToken) {
         throw new Error('请先登录后再使用 AI 复盘')
       }
       try {
-        return await request<AiReviewResponse>('/api/ai/review', { method: 'POST', json: req })
+        // AI 生成可能耗时较长：前端超时放宽到 60s，并支持外部 signal 取消
+        return await request<AiReviewResponse>('/api/ai/review', {
+          method: 'POST',
+          json: req,
+          timeoutMs: 60_000,
+          signal: options?.signal,
+        })
       } catch (err) {
         // ApiClientError.message 已是服务端下发的中文可读文案，直接转成普通 Error
         if (err instanceof ApiClientError) throw new Error(err.message)

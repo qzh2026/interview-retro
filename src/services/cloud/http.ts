@@ -114,16 +114,25 @@ async function doFetch(path: string, init: RequestOptions): Promise<Response> {
   if (init.json !== undefined) headers.set('Content-Type', 'application/json')
   if (session.accessToken) headers.set('Authorization', `Bearer ${session.accessToken}`)
 
-  return fetchWithTimeout(
-    `${API_BASE}${path}`,
-    {
+  // 超时 + 外部取消（如用户主动取消 AI 请求）共用一个 AbortController
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), init.timeoutMs ?? REQUEST_TIMEOUT_MS)
+  const external = init.signal
+  if (external) {
+    if (external.aborted) controller.abort()
+    else external.addEventListener('abort', () => controller.abort(), { once: true })
+  }
+  try {
+    return await fetch(`${API_BASE}${path}`, {
       method: init.method ?? 'GET',
       headers,
       credentials: 'include',
       body: init.json === undefined ? undefined : JSON.stringify(init.json),
-    },
-    init.timeoutMs ?? REQUEST_TIMEOUT_MS,
-  )
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function request<T>(

@@ -6,14 +6,14 @@
  * 绝不能把密钥写进前端（Vite 的 import.meta.env 会原样打进产物）。
  */
 import { getAiAdapter } from '@/core/extensions/registry'
-import type { AiReviewRequest, AiReviewResponse } from '@/sdk/types'
+import type { AiReviewOptions, AiReviewRequest, AiReviewResponse } from '@/sdk/types'
 
-export type { AiAdapter, AiReviewRequest, AiReviewResponse } from '@/sdk/types'
+export type { AiAdapter, AiReviewOptions, AiReviewRequest, AiReviewResponse } from '@/sdk/types'
 
 export function isAiEnabled(): boolean {
   return getAiAdapter().id !== 'core:disabled'
 }
 
-export function reviewWithAi(req: AiReviewRequest): Promise<AiReviewResponse> {
-  return getAiAdapter().review(req)
+export function reviewWithAi(req: AiReviewRequest, options?: AiReviewOptions): Promise<AiReviewResponse> {
+  return getAiAdapter().review(req, options)
 }

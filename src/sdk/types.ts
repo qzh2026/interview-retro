@@ -146,10 +146,15 @@ export interface AiReviewResponse {
   suggestions: string[]
 }
 
+/** AI 复盘调用的可选参数；signal 用于前端主动取消（如用户点「取消」） */
+export interface AiReviewOptions {
+  signal?: AbortSignal
+}
+
 export interface AiAdapter {
   readonly id: string
   readonly label: string
-  review(req: AiReviewRequest): Promise<AiReviewResponse>
+  review(req: AiReviewRequest, options?: AiReviewOptions): Promise<AiReviewResponse>
   chat?(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string>
 }
 

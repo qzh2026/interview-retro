@@ -10,7 +10,11 @@
         <el-popconfirm title="确定删除这道题？不可恢复" @confirm="onDelete">
           <template #reference><el-button type="danger" plain>删除</el-button></template>
         </el-popconfirm>
-        <el-button type="primary" @click="onSave">保存修改</el-button>
+        <el-button v-if="isAiEnabled()" :loading="aiLoading" :disabled="aiLoading" @click="onAiReview">
+          AI 复盘
+        </el-button>
+        <el-button v-if="aiLoading" @click="onAiCancel">取消</el-button>
+        <el-button type="primary" :disabled="aiLoading" @click="onSave">保存修改</el-button>
       </div>
     </div>
 
@@ -131,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getQuestionDetailTabs } from '@/core/extensions/registry'
@@ -140,7 +144,9 @@ import { CATEGORY_OPTIONS, DIFFICULTY_OPTIONS, MASTERY_OPTIONS, RATING_OPTIONS }
 import { formatDateTime } from '@/utils/date'
 import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import type { Difficulty, MasteryLevel, QuestionCategory, SelfRating } from '@/types'
-import { toUserMessage } from '@/services/cloud/http'
+import { CLOUD_UNREACHABLE_HINT, isBackendUnreachable, toUserMessage } from '@/services/cloud/http'
+import { isAiEnabled, reviewWithAi } from '@/services/ai'
+import { buildAiDraftPatch } from '@/services/ai-review'
 
 const route = useRoute()
 const router = useRouter()
@@ -148,6 +154,9 @@ const questionStore = useQuestionStore()
 const id = computed(() => String(route.params.id ?? ''))
 const question = computed(() => questionStore.getById(id.value))
 const tabs = getQuestionDetailTabs()
+
+const aiLoading = ref(false)
+const aiAbort = ref<AbortController | null>(null)
 
 const draft = reactive({
   content: '',
@@ -191,6 +200,51 @@ async function onSave(): Promise<void> {
   } catch (err) {
     ElMessage.error(toUserMessage(err))
   }
+}
+
+async function onAiReview(): Promise<void> {
+  if (!question.value) return
+  if (!draft.content.trim()) {
+    ElMessage.warning('请先填写题目内容再使用 AI 复盘')
+    return
+  }
+  aiAbort.value?.abort()
+  const controller = new AbortController()
+  aiAbort.value = controller
+  aiLoading.value = true
+  try {
+    const res = await reviewWithAi(
+      {
+        content: draft.content,
+        myAnswer: draft.myAnswer,
+        category: draft.category,
+        tags: [...draft.tags],
+      },
+      { signal: controller.signal },
+    )
+    if (controller.signal.aborted) return
+    // 只填草稿、不覆盖用户已写内容；需用户点「保存修改」才落库
+    const patch = buildAiDraftPatch(res, {
+      idealAnswer: draft.idealAnswer,
+      lesson: draft.lesson,
+      tags: [...draft.tags],
+    })
+    if (patch.idealAnswer !== undefined) draft.idealAnswer = patch.idealAnswer
+    if (patch.lesson !== undefined) draft.lesson = patch.lesson
+    draft.tags = patch.tags
+    ElMessage.success('AI 建议已填入草稿，请检查后点击「保存修改」')
+  } catch (err) {
+    if (controller.signal.aborted) return
+    ElMessage.error(isBackendUnreachable(err) ? CLOUD_UNREACHABLE_HINT : toUserMessage(err))
+  } finally {
+    if (aiAbort.value === controller) aiAbort.value = null
+    if (!controller.signal.aborted) aiLoading.value = false
+  }
+}
+
+function onAiCancel(): void {
+  aiAbort.value?.abort()
+  aiLoading.value = false
 }
 
 async function onReviewed(remembered: boolean): Promise<void> {

@@ -84,7 +84,7 @@ curl http://127.0.0.1:3001/ready
 
 **数据库**：Drizzle + libSQL（SQLite）。`npm run db:generate` 根据 `server/db/schema.ts` 生成可审查、可回滚的 SQL 到 `server/db/migrations/`，服务启动期自动执行未应用的迁移（幂等）。迁移 0000 建 `users` / `refresh_tokens`，迁移 0001 建 `sync_changes` / `tombstones`。本地数据文件默认在 `server/data/`，已被忽略。
 
-**AI 复盘（可选）**：`POST /api/ai/review` 是 OpenAI 兼容代理（DeepSeek / Kimi / Qwen / OpenAI 等通吃），在 `server/.env` 配 `AI_API_KEY` + `AI_MODEL`（可选 `AI_BASE_URL`）即启用；密钥只进服务端环境变量，前端产物里不存在。产品 UI 默认没有 AI 入口（保持工具聚焦），前端经 `cloud-ai` 插件走 `AiAdapter` 注入，想接自己的 UI 时调用 `reviewWithAi()` 即可。
+**AI 复盘（可选）**：`POST /api/ai/review` 是 OpenAI 兼容代理（DeepSeek / Kimi / Qwen / OpenAI 等通吃），在 `server/.env` 配 `AI_API_KEY` + `AI_MODEL`（可选 `AI_BASE_URL`）即启用；密钥只进服务端环境变量，前端产物里不存在。产品 UI 已内置「AI 复盘」入口：题目详情页点击「AI 复盘」即调 `reviewWithAi()`（经 `cloud-ai` 插件走 `AiAdapter` 注入），把大模型返回的正确思路 / 建议标签 / 改进建议填入三段式草稿（不擅自覆盖你已写的内容），确认后点「保存修改」才落库。
 
 ## 部署
 
@@ -404,7 +404,7 @@ setup({ registerMenuItem, registerRoute, registerDashboardWidget,
 
 - P1：Markdown 渲染与代码高亮、面经文本解析增强、按公司 / 岗位统计
 - P2：~~异步存储适配器~~ **已完成**（`AsyncStorageAdapter` + 统一异步网关，repository / stores 已 async 化）；全文检索待做
-- P3：~~AI 后端代理~~ **已完成**（`POST /api/ai/review`，OpenAI 兼容、密钥只在服务端）；剩余：产品 UI 的 AI 入口（当前经 `AiAdapter` 注入、无界面按钮）
+- P3：~~AI 后端代理~~ **已完成**（`POST /api/ai/review`，OpenAI 兼容、密钥只在服务端）；~~产品 UI 的 AI 入口~~ **已完成**（题目详情页「AI 复盘」按钮，结果填入草稿、确认后保存，密钥只在服务端）
 - P4：~~多端同步（账号 + 增量同步）~~ **已完成**（scrypt + JWT 鉴权、`/api/sync/*`、字段级 LWW、离线队列、30s 轮询）；剩余：同步冲突的可视化 diff、日志压缩
 
 ## 常见问题
