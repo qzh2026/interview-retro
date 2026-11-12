@@ -37,7 +37,7 @@ const EnvSchema = z.object({
   AI_MODEL: z.string().optional(),
   /** 上游调用超时（毫秒） */
   AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
-  /** /api/ai/review 每分钟每用户的请求上限 */
+  /** /api/ai/review 每分钟每 IP 的请求上限（路由级限流，按客户端 IP 而非用户） */
   AI_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10000).default(10),
 })
 
