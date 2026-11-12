@@ -281,6 +281,57 @@
         <footer class="zoom-foot">编辑内容会同步回主页面，点顶部「保存修改」后生效</footer>
       </section>
     </div>
+
+    <!-- AI 复盘结果面板：完整展示本次生成内容，用户逐条决定是否填入草稿 -->
+    <div v-if="aiResult" class="zoom-overlay ai-overlay" @click.self="closeAiResult">
+      <section class="zoom-modal" role="dialog" aria-modal="true" aria-label="AI 复盘结果">
+        <header class="zoom-head">
+          <div>
+            <div class="zoom-kicker">AI 复盘结果</div>
+            <h2 class="zoom-title">本次生成内容</h2>
+          </div>
+          <el-button @click="closeAiResult">关闭</el-button>
+        </header>
+
+        <div class="zoom-body ai-body">
+          <section v-for="section in aiSections" :key="section.target" class="ai-section">
+            <div class="ai-section-head">
+              <h3 class="ai-section-title">{{ section.title }}</h3>
+              <span class="ai-badge" :class="`ai-badge--${autoFillTone(section.target)}`">
+                {{ autoFillLabel(section.target) }}
+              </span>
+            </div>
+
+            <p v-if="section.target === 'idealAnswer'" class="ai-text">{{ section.items[0] }}</p>
+            <ol v-else-if="section.target === 'lesson'" class="ai-list">
+              <li v-for="(item, index) in section.items" :key="index">{{ item }}</li>
+            </ol>
+            <div v-else class="ai-tags">
+              <span v-for="(item, index) in section.items" :key="index" class="ai-tag">
+                {{ item }}
+              </span>
+            </div>
+
+            <div class="ai-section-foot">
+              <el-button
+                v-if="section.target !== 'tags'"
+                size="small"
+                :disabled="isApplied(section)"
+                @click="adoptSection(section)"
+              >
+                {{ adoptLabel(section) }}
+              </el-button>
+              <span v-else class="muted">调用时已自动合并进「知识点标签」</span>
+            </div>
+          </section>
+          <el-empty v-if="aiSections.length === 0" description="本次 AI 没有生成可用内容" />
+        </div>
+
+        <footer class="zoom-foot">
+          点「填入草稿 / 覆盖草稿」会写入对应文本框；所有改动仍需点顶部「保存修改」才落库。
+        </footer>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -296,8 +347,14 @@ import PluginBoundary from '@/components/common/PluginBoundary.vue'
 import type { Difficulty, MasteryLevel, QuestionCategory, SelfRating } from '@/types'
 import { CLOUD_UNREACHABLE_HINT, isBackendUnreachable, toUserMessage } from '@/services/cloud/http'
 import { isAiEnabled, reviewWithAi } from '@/services/ai'
-import { buildAiDraftPatch } from '@/services/ai-review'
+import {
+  buildAiDraftPatch,
+  buildAiResultSections,
+  type AiResultSection,
+  type AiResultTarget,
+} from '@/services/ai-review'
 import { getQuestionPanel, type PanelId } from '@/utils/question-panels'
+import type { AiReviewResponse } from '@/sdk/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -308,6 +365,35 @@ const tabs = getQuestionDetailTabs()
 
 const aiLoading = ref(false)
 const aiAbort = ref<AbortController | null>(null)
+
+/** 本次 AI 原始结果；非空时展示结果面板。与 draft 分开，保证「不覆盖」默认值仍成立 */
+const aiResult = ref<AiReviewResponse | null>(null)
+/** 自动回填命中了哪些字段，用于结果面板标注「已自动填入 / 已有内容未自动覆盖」 */
+const aiAutoFilled = reactive({ idealAnswer: false, lesson: false })
+const aiSections = computed(() =>
+  aiResult.value ? buildAiResultSections(aiResult.value) : [],
+)
+
+function closeAiResult(): void {
+  aiResult.value = null
+}
+
+// 同路由切换题目时组件会复用：清掉上一题的结果与进行中的请求，避免面板残留
+watch(id, () => {
+  aiAbort.value?.abort()
+  aiLoading.value = false
+  closeAiResult()
+})
+
+function autoFillLabel(target: AiResultTarget): string {
+  if (target === 'tags') return '已自动合并'
+  return aiAutoFilled[target] ? '已自动填入' : '已有内容，未自动覆盖'
+}
+
+function autoFillTone(target: AiResultTarget): 'success' | 'warning' | 'info' {
+  if (target === 'tags') return 'info'
+  return aiAutoFilled[target] ? 'success' : 'warning'
+}
 
 /** 当前放大的模块；null = 弹层未打开。弹层内控件与主页面共用同一个 draft */
 const activePanel = ref<PanelId | null>(null)
@@ -321,17 +407,23 @@ function closePanel(): void {
   activePanel.value = null
 }
 
-// 模态打开时锁住背景滚动，关闭或离开页面后恢复
-watch(activePanel, (id) => {
-  document.body.style.overflow = id ? 'hidden' : ''
+// 任一弹层（放大 / AI 结果）打开时锁住背景滚动，关闭或离开页面后恢复
+watch([activePanel, aiResult], ([panel, result]) => {
+  document.body.style.overflow = panel || result ? 'hidden' : ''
 })
 
 function onEscape(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && activePanel.value !== null) {
-    // AI 复盘进行中优先取消请求，避免误关弹层打断用户
-    if (aiLoading.value) onAiCancel()
-    else closePanel()
+  if (event.key !== 'Escape') return
+  // AI 复盘进行中优先取消请求，避免误关面板打断用户
+  if (aiLoading.value) {
+    onAiCancel()
+    return
   }
+  if (aiResult.value) {
+    closeAiResult()
+    return
+  }
+  if (activePanel.value !== null) closePanel()
 }
 
 onMounted(() => window.addEventListener('keydown', onEscape))
@@ -371,6 +463,26 @@ watch(
   { immediate: true },
 )
 
+/** 面板里的采纳按钮：用户显式点击即允许覆盖已有内容，但改的仍是 draft，需「保存修改」才落库 */
+function isApplied(section: AiResultSection): boolean {
+  if (section.target === 'idealAnswer') return draft.idealAnswer === section.applyText
+  if (section.target === 'lesson') return draft.lesson === section.applyText
+  return false
+}
+
+function adoptLabel(section: AiResultSection): string {
+  if (isApplied(section)) return '已填入草稿'
+  const current = section.target === 'idealAnswer' ? draft.idealAnswer : draft.lesson
+  return current.trim() ? '覆盖草稿' : '填入草稿'
+}
+
+function adoptSection(section: AiResultSection): void {
+  if (section.target === 'idealAnswer') draft.idealAnswer = section.applyText
+  else if (section.target === 'lesson') draft.lesson = section.applyText
+  else return
+  ElMessage.success('已写入草稿，请检查后点击「保存修改」')
+}
+
 async function onSave(): Promise<void> {
   if (!draft.content.trim()) {
     ElMessage.warning('题目内容不能为空')
@@ -405,7 +517,7 @@ async function onAiReview(): Promise<void> {
       { signal: controller.signal },
     )
     if (controller.signal.aborted) return
-    // 只填草稿、不覆盖用户已写内容；需用户点「保存修改」才落库
+    // 默认仍是「只填草稿、不覆盖用户已写内容」；需用户点「保存修改」才落库
     const patch = buildAiDraftPatch(res, {
       idealAnswer: draft.idealAnswer,
       lesson: draft.lesson,
@@ -414,7 +526,13 @@ async function onAiReview(): Promise<void> {
     if (patch.idealAnswer !== undefined) draft.idealAnswer = patch.idealAnswer
     if (patch.lesson !== undefined) draft.lesson = patch.lesson
     draft.tags = patch.tags
-    ElMessage.success('AI 建议已填入草稿，请检查后点击「保存修改」')
+    // 记录哪些字段被自动填入，结果面板据此标注「已自动填入 / 已有内容未自动覆盖」
+    aiAutoFilled.idealAnswer = patch.idealAnswer !== undefined
+    aiAutoFilled.lesson = patch.lesson !== undefined
+    // 两个遮罩不叠加：先收起放大弹层，再展示完整 AI 结果供逐条采纳
+    closePanel()
+    aiResult.value = res
+    ElMessage.success('AI 复盘完成：结果已展示，可逐条填入草稿')
   } catch (err) {
     if (controller.signal.aborted) return
     ElMessage.error(isBackendUnreachable(err) ? CLOUD_UNREACHABLE_HINT : toUserMessage(err))
@@ -577,6 +695,86 @@ async function onDelete(): Promise<void> {
   font-size: 11px;
   line-height: 1.6;
   color: var(--text-muted);
+}
+
+/* AI 复盘结果面板：复用居中模态骨架，内部按段展示 + 逐条采纳 */
+.ai-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ai-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.ai-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ai-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.ai-badge {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.ai-badge--success {
+  color: var(--success);
+  border-color: var(--success);
+}
+.ai-badge--warning {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+.ai-badge--info {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.ai-text,
+.ai-list {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+  margin: 0;
+}
+.ai-text {
+  white-space: pre-wrap;
+}
+.ai-list {
+  padding-left: 20px;
+}
+.ai-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ai-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.ai-section-foot {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ai-section-foot .muted {
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {
