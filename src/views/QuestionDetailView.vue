@@ -1,6 +1,6 @@
 <template>
-  <div class="page">
-    <div class="page-header">
+    <div class="page" :class="{ 'page--zoomed': activePanel !== null }">
+      <div class="page-header">
       <div>
         <h1>单题复盘</h1>
         <p>「当时怎么答的」和「应该怎么答」分开看，差距才是提分点</p>
@@ -22,7 +22,17 @@
 
     <template v-else>
       <section class="card mb-16">
-        <h2 class="section-title">题目</h2>
+        <h2
+          class="section-title panel-title"
+          role="button"
+          tabindex="0"
+          @click="openPanel('content')"
+          @keydown.enter="openPanel('content')"
+          @keydown.space.prevent="openPanel('content')"
+        >
+          <span>题目</span>
+          <span class="panel-hint">放大</span>
+        </h2>
         <el-input v-model="draft.content" type="textarea" :rows="2" />
         <div class="form-row mt-16">
           <el-form-item label="分类">
@@ -82,11 +92,31 @@
 
       <div class="compare-grid mb-16">
         <section class="card">
-          <h2 class="section-title">我当时怎么答的</h2>
+          <h2
+            class="section-title panel-title"
+            role="button"
+            tabindex="0"
+            @click="openPanel('myAnswer')"
+            @keydown.enter="openPanel('myAnswer')"
+            @keydown.space.prevent="openPanel('myAnswer')"
+          >
+            <span>我当时怎么答的</span>
+            <span class="panel-hint">放大</span>
+          </h2>
           <el-input v-model="draft.myAnswer" type="textarea" :rows="7" placeholder="原样记录" />
         </section>
         <section class="card">
-          <h2 class="section-title">复盘后的正确思路</h2>
+          <h2
+            class="section-title panel-title"
+            role="button"
+            tabindex="0"
+            @click="openPanel('idealAnswer')"
+            @keydown.enter="openPanel('idealAnswer')"
+            @keydown.space.prevent="openPanel('idealAnswer')"
+          >
+            <span>复盘后的正确思路</span>
+            <span class="panel-hint">放大</span>
+          </h2>
           <el-input
             v-model="draft.idealAnswer"
             type="textarea"
@@ -97,13 +127,33 @@
       </div>
 
       <section class="card mb-16">
-        <h2 class="section-title">踩坑点 · 下次怎么说</h2>
+        <h2
+          class="section-title panel-title"
+          role="button"
+          tabindex="0"
+          @click="openPanel('lesson')"
+          @keydown.enter="openPanel('lesson')"
+          @keydown.space.prevent="openPanel('lesson')"
+        >
+          <span>踩坑点 · 下次怎么说</span>
+          <span class="panel-hint">放大</span>
+        </h2>
         <el-input v-model="draft.lesson" type="textarea" :rows="3" />
       </section>
 
       <section class="card review-panel">
         <div>
-          <strong>复习打卡</strong>
+          <strong
+            class="panel-title panel-title--inline"
+            role="button"
+            tabindex="0"
+            @click="openPanel('review')"
+            @keydown.enter="openPanel('review')"
+            @keydown.space.prevent="openPanel('review')"
+          >
+            复习打卡
+            <span class="panel-hint">放大</span>
+          </strong>
           <div class="muted">
             已复习 {{ question.reviewCount }} 次 · 下次 {{ question.nextReviewAt || '—' }}
             <span v-if="question.lastReviewedAt">
@@ -131,11 +181,117 @@
         </el-tabs>
       </section>
     </template>
+
+    <!-- 模块放大抽屉：右侧滑出，左页保持完整且可继续点其他标题切换 -->
+    <aside v-if="panel" class="zoom-panel" :aria-label="`放大查看：${panel.title}`">
+      <div class="zoom-head">
+        <div>
+          <div class="zoom-kicker">放大查看</div>
+          <h2 class="zoom-title">{{ panel.title }}</h2>
+        </div>
+        <el-button @click="closePanel">收起</el-button>
+      </div>
+
+      <div class="zoom-switch">
+        <button
+          v-for="item in QUESTION_PANELS"
+          :key="item.id"
+          type="button"
+          class="zoom-chip"
+          :class="{ 'is-active': activePanel === item.id }"
+          @click="openPanel(item.id)"
+        >
+          {{ item.title }}
+        </button>
+      </div>
+
+      <div class="zoom-body">
+        <template v-if="panel.kind === 'question'">
+          <el-input v-model="draft.content" type="textarea" :rows="10" class="zoom-input" />
+          <div class="form-row mt-16">
+            <el-form-item label="分类">
+              <el-select v-model="draft.category" style="width: 100%">
+                <el-option v-for="o in CATEGORY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="难度">
+              <el-select v-model="draft.difficulty" style="width: 100%">
+                <el-option v-for="o in DIFFICULTY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="自评">
+              <el-select v-model="draft.selfRating" style="width: 100%">
+                <el-option v-for="o in RATING_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="掌握度">
+              <el-select v-model="draft.mastery" style="width: 100%">
+                <el-option v-for="o in MASTERY_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+            </el-form-item>
+          </div>
+          <el-form-item label="知识点标签" class="mt-16">
+            <el-select
+              v-model="draft.tags"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              style="width: 100%"
+            >
+              <el-option v-for="tag in draft.tags" :key="tag" :label="tag" :value="tag" />
+            </el-select>
+          </el-form-item>
+        </template>
+
+        <el-input
+          v-else-if="activePanel === 'myAnswer'"
+          v-model="draft.myAnswer"
+          type="textarea"
+          :rows="20"
+          placeholder="原样记录"
+          class="zoom-input"
+        />
+        <el-input
+          v-else-if="activePanel === 'idealAnswer'"
+          v-model="draft.idealAnswer"
+          type="textarea"
+          :rows="20"
+          placeholder="查资料后整理"
+          class="zoom-input"
+        />
+        <el-input
+          v-else-if="activePanel === 'lesson'"
+          v-model="draft.lesson"
+          type="textarea"
+          :rows="14"
+          class="zoom-input"
+        />
+
+        <template v-else>
+          <div class="zoom-review">
+            <div class="zoom-review-stat">
+              已复习 <strong>{{ question?.reviewCount ?? 0 }}</strong> 次
+            </div>
+            <div class="muted">下次 {{ question?.nextReviewAt || '—' }}</div>
+            <div v-if="question?.lastReviewedAt" class="muted">
+              上次 {{ formatDateTime(question.lastReviewedAt) }}
+            </div>
+          </div>
+          <div class="zoom-review-actions">
+            <el-button @click="onReviewed(false)">没记住，明天再来</el-button>
+            <el-button type="primary" @click="onReviewed(true)">记住了，拉长间隔</el-button>
+          </div>
+        </template>
+      </div>
+
+      <div class="zoom-foot">编辑内容会同步回主页面，点顶部「保存修改」后生效</div>
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getQuestionDetailTabs } from '@/core/extensions/registry'
@@ -147,6 +303,11 @@ import type { Difficulty, MasteryLevel, QuestionCategory, SelfRating } from '@/t
 import { CLOUD_UNREACHABLE_HINT, isBackendUnreachable, toUserMessage } from '@/services/cloud/http'
 import { isAiEnabled, reviewWithAi } from '@/services/ai'
 import { buildAiDraftPatch } from '@/services/ai-review'
+import {
+  getQuestionPanel,
+  QUESTION_PANELS,
+  type PanelId,
+} from '@/utils/question-panels'
 
 const route = useRoute()
 const router = useRouter()
@@ -157,6 +318,29 @@ const tabs = getQuestionDetailTabs()
 
 const aiLoading = ref(false)
 const aiAbort = ref<AbortController | null>(null)
+
+/** 当前放大的模块；null = 未打开抽屉。抽屉内控件与主页面共用同一个 draft */
+const activePanel = ref<PanelId | null>(null)
+const panel = computed(() => getQuestionPanel(activePanel.value))
+
+function openPanel(id: PanelId): void {
+  activePanel.value = id
+}
+
+function closePanel(): void {
+  activePanel.value = null
+}
+
+function onEscape(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && activePanel.value !== null) {
+    // AI 复盘进行中优先取消请求，避免误关抽屉打断用户
+    if (aiLoading.value) onAiCancel()
+    else closePanel()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onEscape))
+onUnmounted(() => window.removeEventListener('keydown', onEscape))
 
 const draft = reactive({
   content: '',
@@ -268,6 +452,163 @@ async function onDelete(): Promise<void> {
 </script>
 
 <style scoped>
+/* 可放大的模块标题：保持原有层级语义，仅加轻微交互提示 */
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+.panel-title:hover,
+.panel-title:focus-visible {
+  color: var(--primary);
+}
+.panel-title:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+}
+.panel-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.panel-title:hover .panel-hint,
+.panel-title:focus-visible .panel-hint {
+  opacity: 1;
+}
+.panel-title--inline {
+  display: inline-flex;
+  width: auto;
+  margin: 0;
+}
+
+/* 抽屉打开时左页让出右侧空间，保持全部模块可见、可继续点标题切换 */
+.page--zoomed {
+  --zoom-panel-width: min(52vw, 680px);
+  padding-right: calc(var(--zoom-panel-width) + 20px);
+}
+.page--zoomed .page-header {
+  flex-wrap: wrap;
+}
+
+.zoom-panel {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: var(--zoom-panel-width, 52vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -6px 0 18px rgb(31 35 41 / 8%);
+  animation: zoom-in 0.2s ease-out;
+}
+@keyframes zoom-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.zoom-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.zoom-kicker {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.zoom-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.zoom-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.zoom-chip {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.zoom-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.zoom-chip.is-active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.zoom-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+}
+.zoom-body :deep(.zoom-input .el-textarea__inner) {
+  font-size: 14px;
+  line-height: 1.8;
+  min-height: 220px;
+}
+.zoom-review {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.zoom-review-stat {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.zoom-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.zoom-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .page--zoomed {
+    --zoom-panel-width: 100vw;
+    padding-right: 28px;
+  }
+  .zoom-panel {
+    top: 0;
+    border-left: none;
+  }
+}
+
 .header-actions {
   display: flex;
   gap: 10px;
