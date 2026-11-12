@@ -229,6 +229,29 @@
             @change="onImportFileChange"
           />
         </div>
+
+        <!-- 粘贴文本导入：绕过受沙箱限制、访问不到本地文件的文件选择对话框 -->
+        <div class="paste-import">
+          <div class="paste-row">
+            <el-select v-model="pasteFormatId" size="small" style="width: 260px">
+              <el-option v-for="f in importers" :key="f.id" :label="f.label" :value="f.id" />
+            </el-select>
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="!pasteText.trim()"
+              @click="onPasteImport"
+            >
+              导入粘贴内容
+            </el-button>
+          </div>
+          <el-input
+            v-model="pasteText"
+            type="textarea"
+            :rows="6"
+            placeholder="把导出/台账文本（如「面试出题台账.md」的完整内容）粘贴到这里，选好格式后点「导入粘贴内容」即可落盘，免文件选择"
+          />
+        </div>
       </div>
     </section>
 
@@ -356,6 +379,8 @@ const panels = getSettingsPanels()
 const adapters = getActiveAdapters()
 const acceptAttr = computed(() => importers.map((item) => item.accept).join(','))
 let activeImporterId = ''
+const pasteFormatId = ref(importers[0]?.id ?? '')
+const pasteText = ref('')
 
 /* ---- 同步冲突（只读展示 + 一键恢复本机版本） ---- */
 const conflicts = computed(() => getConflicts())
@@ -531,14 +556,15 @@ function openImport(formatId: string): void {
   importInput.value?.click()
 }
 
-async function onImportFileChange(event: Event): Promise<void> {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-  const format = importers.find((item) => item.id === activeImporterId)
+/**
+ * 通用导入：解析文本 → 去重 → 批量落盘。
+ * 文件选择与粘贴文本两条入口共用，避免重复逻辑。
+ */
+async function runImport(formatId: string, text: string): Promise<void> {
+  const format = importers.find((item) => item.id === formatId)
   if (!format) return
   try {
-    const data = format.parse(await file.text(), { settings: settingsStore.settings })
+    const data = format.parse(text, { settings: settingsStore.settings })
     // 去重：带 taizhangId 的题若本机已存在则跳过，支持台账每日增量导入而不产生重复
     const existingTaizhang = new Set(
       questionStore.items
@@ -560,13 +586,42 @@ async function onImportFileChange(event: Event): Promise<void> {
     ElMessage.success(`导入完成：${interviews.length} 场面试，${created.length} 道题`)
   } catch (err) {
     ElMessage.error(`导入失败：${toUserMessage(err)}`)
+  }
+}
+
+async function onImportFileChange(event: Event): Promise<void> {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  try {
+    await runImport(activeImporterId, await file.text())
   } finally {
     target.value = ''
   }
 }
+
+async function onPasteImport(): Promise<void> {
+  const text = pasteText.value.trim()
+  if (!text) {
+    ElMessage.warning('请先粘贴要导入的文本')
+    return
+  }
+  await runImport(pasteFormatId.value, text)
+}
 </script>
 
 <style scoped>
+.paste-import {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 8px;
+}
+.paste-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .setting-row {
   display: flex;
   align-items: center;
